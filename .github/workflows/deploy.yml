@@ -1,0 +1,68 @@
+name: Deploy Infrastructure
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "terraform/**"
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@v2
+        with:
+          terraform_version: 1.5.0
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          role-to-assume: arn:aws:iam::YOUR_AWS_ACCOUNT_ID:role/github-actions-plugfolio-role
+          role-session-name: GitHubActionsPlugfolio
+          aws-region: us-east-1
+
+      # Verify S3 bucket configuration
+      - name: Verify S3 Bucket Configuration
+        run: |
+          # Check if bucket exists
+          aws s3 ls s3://plugfolio-terraform-state --region us-east-1 || { echo "Bucket plugfolio-terraform-state does not exist."; exit 1; }
+          # Ensure versioning and encryption are enabled
+          aws s3api put-bucket-versioning --bucket plugfolio-terraform-state --versioning-configuration Status=Enabled --region us-east-1 || echo "Versioning already enabled"
+          aws s3api put-bucket-encryption --bucket plugfolio-terraform-state --server-side-encryption-configuration '{"Rules":[{"ApplyServerSideEncryptionByDefault":{"SSEAlgorithm":"AES256"}}]}' --region us-east-1 || echo "Encryption already enabled"
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+
+      # Initialize Terraform with S3 backend
+      - name: Terraform Init with S3 Backend
+        working-directory: ./terraform
+        run: |
+          terraform init \
+            -backend-config="bucket=plugfolio-terraform-state" \
+            -backend-config="key=terraform.tfstate" \
+            -backend-config="region=us-east-1" \
+            -backend-config="encrypt=true" \
+            -backend-config="dynamodb_table=plugfolio-terraform-locks"
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+
+      # Validate Terraform configuration
+      - name: Terraform Validate
+        working-directory: ./terraform
+        run: terraform validate
+
+      # Generate and review Terraform plan
+      - name: Terraform Plan
+        working-directory: ./terraform
+        run: terraform plan -out=tfplan
+
+      # Apply Terraform changes
+      - name: Terraform Apply
+        working-directory: ./terraform
+        run: terraform apply -auto-approve tfplan
