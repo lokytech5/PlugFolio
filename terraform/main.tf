@@ -75,7 +75,7 @@ resource "aws_security_group" "plugfolio_sg" {
 }
 
 #Fetch existing Route 53 Hosted Zone
-data "aws_route53_zone" "main" {
-  name         = var.root_domain
-  private_zone = false
-}
+# data "aws_route53_zone" "main" {
+#   name         = var.root_domain
+#   private_zone = false
+# }
