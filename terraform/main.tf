@@ -1,7 +1,6 @@
 # PlugFolio Terraform configuration
 provider "aws" {
-  region  = var.aws_region
-  profile = "developer"
+  region = var.aws_region
 }
 
 #VPC and Networking
