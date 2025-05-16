@@ -39,14 +39,10 @@ echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab
 # Configure Nginx
 sudo systemctl enable nginx && sudo systemctl start nginx
 
-# Copy the systemd service file from your repo to the correct location
-sudo cp /home/ubuntu/plugfolio-app/services/plugfolio-app.service /etc/systemd/system/plugfolio-app.service
+# Write out the systemd unit from a Terraform variable
+cat <<EOT | sudo tee /etc/systemd/system/plugfolio-app.service
+${my_app_service}
+EOT
 
-# Reload systemd so it recognizes the new service
 sudo systemctl daemon-reload
-
-# Enable the service so it starts on boot (and you can start it right away)
 sudo systemctl enable plugfolio-app.service
-
-# Start the service
-sudo systemctl start plugfolio-app.service
