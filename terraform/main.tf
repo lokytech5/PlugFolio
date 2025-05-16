@@ -63,7 +63,6 @@ resource "aws_security_group" "plugfolio_sg" {
     protocol    = "tcp"
     cidr_blocks = ["0.0.0.0/0"]
   }
-
   ingress {
     from_port   = 22
     to_port     = 22
@@ -83,8 +82,20 @@ resource "aws_security_group" "plugfolio_sg" {
 
 }
 
+# EC2 Instance
+resource "aws_instance" "plugfolio_instance" {
+  ami             = "ami-0c55b159cbfafe1f0"
+  instance_type   = var.instance_type
+  subnet_id       = aws_subnet.public.id
+  security_groups = [aws_security_group.plugfolio_sg.id]
+  user_data       = file("/scripts/user_data.sh")
+  tags = {
+    Name = "plugfolio-instance"
+  }
+}
+
 #Fetch existing Route 53 Hosted Zone
-# data "aws_route53_zone" "main" {
-#   name         = var.root_domain
-#   private_zone = false
-# }
+data "aws_route53_zone" "main" {
+  name         = var.root_domain
+  private_zone = false
+}
