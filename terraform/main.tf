@@ -108,3 +108,20 @@ data "aws_route53_zone" "main" {
 data "aws_key_pair" "existing" {
   key_name = "ec2-login-key"
 }
+
+#EBS Volume for EC2
+resource "aws_ebs_volume" "plugfolio_volume" {
+  availability_zone = aws_instance.plugfolio_instance.availability_zone
+  size              = 30
+  type              = "gp2"
+  tags = {
+    Name = "plugfolio-ebs-volume"
+  }
+}
+
+resource "aws_volume_attachment" "plugfolio_volume_attachment" {
+  device_name = "/dev/xvdf"
+  volume_id   = aws_ebs_volume.plugfolio_volume.id
+  instance_id = aws_instance.plugfolio_instance.id
+
+}
