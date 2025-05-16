@@ -84,11 +84,11 @@ resource "aws_security_group" "plugfolio_sg" {
 
 # EC2 Instance
 resource "aws_instance" "plugfolio_instance" {
-  ami             = "ami-0c55b159cbfafe1f0"
+  ami             = "ami-084568db4383264d4"
   instance_type   = var.instance_type
   subnet_id       = aws_subnet.public.id
   security_groups = [aws_security_group.plugfolio_sg.id]
-  user_data       = file("/scripts/user_data.sh")
+  user_data       = file("../scripts/user-data.sh")
   tags = {
     Name = "plugfolio-instance"
   }
