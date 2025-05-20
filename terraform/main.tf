@@ -141,7 +141,7 @@ data "aws_iam_role" "plugfolio_ssm_role" {
 #Added empty data caller identity to avoid errors
 data "aws_caller_identity" "current" {}
 
-# S3 Bucket for Scripts
+# S3 Bucket for Scrip
 resource "aws_s3_bucket" "plugfolio_scripts" {
   bucket = "plugfolio-scripts-${data.aws_caller_identity.current.account_id}"
   tags = {
