@@ -125,3 +125,15 @@ resource "aws_volume_attachment" "plugfolio_volume_attachment" {
   instance_id = aws_instance.plugfolio_instance.id
 
 }
+
+data "aws_iam_role" "plugfolio_lambda_role" {
+  name = "PlugfolioLambdaRole"
+}
+
+data "aws_iam_role" "plugfolio_codebuild_role" {
+  name = "PlugfolioCodeBuildRole"
+}
+
+data "aws_iam_role" "plugfolio_ssm_role" {
+  name = "PlugfolioSSMRole"
+}
