@@ -84,3 +84,19 @@ if terraform state list > /dev/null 2>&1; then
 else
   echo "Success: The PlugFolio dev infrastructure has been fully destroyed, and the state file is empty."
 fi
+
+# Verify the S3 bucket is deleted
+echo "Checking if the S3 bucket (plugfolio-scripts-dev-*) was deleted..."
+BUCKET=$(aws s3 ls s3://plugfolio-scripts-dev- --region us-east-1 2>/dev/null | awk '{print $3}' | grep '^plugfolio-scripts-dev-')
+if [ -n "$BUCKET" ]; then
+  echo "Warning: S3 bucket '$BUCKET' still exists in AWS but is not tracked in the state."
+  echo "Deleting the bucket to align with the state..."
+  aws s3 rb s3://$BUCKET --force --region us-east-1
+  if [ $? -eq 0 ]; then
+    echo "S3 bucket successfully deleted."
+  else
+    echo "Error: Failed to delete the S3 bucket. Please delete it manually in the AWS console."
+  fi
+else
+  echo "Success: The PlugFolio dev infrastructure, including the S3 bucket, has been fully destroyed."
+fi

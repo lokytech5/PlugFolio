@@ -138,12 +138,16 @@ data "aws_iam_role" "plugfolio_ssm_role" {
   name = "PlugfolioSSMRole"
 }
 
-#Added empty data caller identity to avoid errors
-data "aws_caller_identity" "current" {}
+resource "random_string" "suffix" {
+  length  = 8
+  special = false
+  upper   = false
+  numeric = true
+}
 
 # S3 Bucket for Scrip
 resource "aws_s3_bucket" "plugfolio_scripts" {
-  bucket = "plugfolio-scripts-${data.aws_caller_identity.current.account_id}"
+  bucket = "plugfolio-scripts${random_string.suffix.result}"
   tags = {
     Name = "PlugfolioScriptsBucket"
   }
