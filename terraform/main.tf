@@ -137,3 +137,23 @@ data "aws_iam_role" "plugfolio_codebuild_role" {
 data "aws_iam_role" "plugfolio_ssm_role" {
   name = "PlugfolioSSMRole"
 }
+
+data "aws_caller_identity" "current" {}
+
+# S3 Bucket for Scripts
+resource "aws_s3_bucket" "plugfolio_scripts" {
+  bucket = "plugfolio-scripts-${data.aws_caller_identity.current.account_id}"
+  tags = {
+    Name = "PlugfolioScriptsBucket"
+  }
+
+}
+
+resource "aws_s3_object" "deploy_app_script" {
+  bucket       = aws_s3_bucket.plugfolio_scripts.bucket
+  key          = "deploy-app.sh"
+  source       = "${path.module}/../scripts/deploy-app.sh"
+  etag         = filemd5("${path.module}/../scripts/deploy-app.sh")
+  content_type = "text/x-shellscript"
+  acl          = "private"
+}
