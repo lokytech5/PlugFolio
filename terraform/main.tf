@@ -138,6 +138,7 @@ data "aws_iam_role" "plugfolio_ssm_role" {
   name = "PlugfolioSSMRole"
 }
 
+#Added empty data caller identity to avoid errors
 data "aws_caller_identity" "current" {}
 
 # S3 Bucket for Scripts
