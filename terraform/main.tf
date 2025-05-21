@@ -227,7 +227,7 @@ resource "aws_lambda_function" "trigger_step_functions" {
   runtime          = "python3.13"
   architectures    = ["x86_64"]
   source_code_hash = filebase64sha256("${path.module}/../lambda/trigger_step_function_lambda.zip")
-  filename         = "${path.module}/../lambda/trigger_step_functions.zip"
+  filename         = "${path.module}/../lambda/trigger_step_function_lambda.zip"
 }
 
 resource "aws_lambda_function" "fetch_parameters" {
@@ -276,7 +276,6 @@ resource "aws_lambda_function" "update_last_known_good" {
 # End of lambda functions
 
 
-
 #APi Gateway
 resource "aws_api_gateway_rest_api" "webhook" {
   name = "PlugfolioWebhook"
@@ -321,4 +320,15 @@ resource "aws_lambda_permission" "api_gateway_trigger" {
   function_name = aws_lambda_function.trigger_step_functions.function_name
   principal     = "apigateway.amazonaws.com"
   source_arn    = "${aws_api_gateway_rest_api.webhook.execution_arn}/*/*"
+}
+
+
+#SNS Topic
+resource "aws_sns_topic" "notification" {
+  name = "PlugfolioNotifications"
+}
+resource "aws_sns_topic_subscription" "email_subscription" {
+  topic_arn = aws_sns_topic.notification.arn
+  protocol  = "email"
+  endpoint  = "rukydiakodue@gmail.com"
 }
