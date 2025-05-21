@@ -226,6 +226,27 @@ resource "aws_lambda_function" "trigger_step_functions" {
   handler          = "trigger_step_function_lambda.lambda_handler"
   runtime          = "python3.13"
   architectures    = ["x86_64"]
-  source_code_hash = filebase64sha256("${path.module}/../lambda/trigger_step_functions.zip")
+  source_code_hash = filebase64sha256("${path.module}/../lambda/trigger_step_function_lambda.zip")
   filename         = "${path.module}/../lambda/trigger_step_functions.zip"
+}
+
+resource "aws_lambda_function" "fetch_parameters" {
+  function_name    = "fetch-parameters-lambda"
+  role             = data.aws_iam_role.plugfolio_lambda_role.arn
+  handler          = "fetch_parameters_lambda.lambda_handler"
+  runtime          = "python3.13"
+  architectures    = ["x86_64"]
+  source_code_hash = filebase64sha256("${path.module}/../lambda/fetch_parameters_lambda.zip")
+  filename         = "${path.module}/../lambda/fetch_parameters_lambda.zip"
+}
+
+resource "aws_lambda_function" "create_subdomain" {
+  function_name    = "create-subdomain-lambda"
+  role             = data.aws_iam_role.plugfolio_lambda_role.arn
+  handler          = "create_subdomain_lambda.lambda_handler"
+  runtime          = "python3.13"
+  architectures    = ["x86_64"]
+  source_code_hash = filebase64sha256("${path.module}/../lambda/create_subdomain_lambda.zip")
+  filename         = "${path.module}/../lambda/create_subdomain_lambda.zip"
+
 }
