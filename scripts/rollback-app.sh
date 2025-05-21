@@ -1,27 +1,55 @@
 #!/bin/bash
 
 # Parameters passed by SSM Automation
-DOCKER_REGISTRY=""
-LAST_KNOWN_GOOD_TAG=""
-SUBDOMAIN=""
+DOCKER_REGISTRY="$1"
+LAST_KNOWN_GOOD_TAG="$2"
+SUBDOMAIN="$3"
 
 # Application directory and container name
-APP_DIR=""
-CONTAINER_NAME=""
+APP_DIR="/home/ubuntu/plugfolio-app"
+CONTAINER_NAME="plugfolio-app-container"
+
+# Validate input parameters
+if [ -z "$DOCKER_REGISTRY" ] || [ -z "$LAST_KNOWN_GOOD_TAG" ] || [ -z "$SUBDOMAIN" ]; then
+  echo "Error: Missing required parameters (DOCKER_REGISTRY, LAST_KNOWN_GOOD_TAG, SUBDOMAIN)" >&2
+  exit 1
+fi
 
 # Stop the current application
-# (Skeleton placeholder)
+if [ -f "$APP_DIR/docker-compose.yml" ]; then
+  echo "Stopping Docker Compose services..."
+  cd "$APP_DIR"
+  sudo -u ubuntu docker-compose -f "$APP_DIR/docker-compose.yml" down
+else
+  if docker ps -q -f name="$CONTAINER_NAME"; then
+    echo "Stopping existing container..."
+    docker stop "$CONTAINER_NAME"
+    docker rm "$CONTAINER_NAME"
+  fi
+fi
 
 # Pull the last known good Docker image
-# (Skeleton placeholder)
+echo "Pulling last known good Docker image: $DOCKER_REGISTRY:$LAST_KNOWN_GOOD_TAG"
+docker pull "$DOCKER_REGISTRY:$LAST_KNOWN_GOOD_TAG"
 
 # Deploy the last known good image (support both docker run and docker-compose)
-# (Skeleton placeholder)
+if [ -f "$APP_DIR/docker-compose.yml" ]; then
+  echo "Deploying with Docker Compose..."
+  cd "$APP_DIR"
+  sudo -u ubuntu docker-compose -f "$APP_DIR/docker-compose.yml" up -d
+else
+  echo "Starting last known good container..."
+  docker run -d --name "$CONTAINER_NAME" -p 80:80 "$DOCKER_REGISTRY:$LAST_KNOWN_GOOD_TAG"
+fi
 
-# Reconfigure Nginx (if needed)
-# (Skeleton placeholder)
-
-# Validate and reload Nginx
-# (Skeleton placeholder)
+# Nginx configuration is already set from deploy-app.sh, so no changes needed
+# Validate and reload Nginx (just to ensure it's running)
+echo "Reloading Nginx..."
+if sudo nginx -t; then
+  sudo systemctl reload nginx
+else
+  echo "Error: Nginx configuration test failed" >&2
+  exit 1
+fi
 
 echo "Rollback completed successfully"

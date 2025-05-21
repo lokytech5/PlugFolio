@@ -138,6 +138,8 @@ data "aws_iam_role" "plugfolio_ssm_role" {
   name = "PlugfolioSSMRole"
 }
 
+data "aws_caller_identity" "current" {}
+
 resource "random_string" "suffix" {
   length  = 8
   special = false
@@ -164,10 +166,12 @@ resource "aws_s3_object" "deploy_app_script" {
 }
 
 resource "aws_s3_object" "rollback_app_script" {
-  bucket = aws_s3_bucket.plugfolio_scripts.id
-  key    = "rollback-app.sh"
-  source = "${path.module}/../scripts/rollback-app.sh"
-  etag   = filemd5("${path.module}/../scripts/rollback-app.sh")
+  bucket       = aws_s3_bucket.plugfolio_scripts.bucket
+  key          = "rollback-app.sh"
+  source       = "${path.module}/../scripts/rollback-app.sh"
+  etag         = filemd5("${path.module}/../scripts/rollback-app.sh")
+  content_type = "text/x-shellscript"
+  acl          = "private"
 }
 
 #ECR Repository
@@ -178,4 +182,39 @@ resource "aws_ecr_repository" "plugfolio_repo" {
     Name = "PlugfolioECRRepo"
   }
 
+}
+
+#codeBuild project
+resource "aws_codebuild_project" "plugfolio_build_docker_image" {
+  name          = "PlugfolioBuildDockerImage"
+  service_role  = data.aws_iam_role.plugfolio_codebuild_role.arn
+  build_timeout = 10
+
+  artifacts {
+    type = "NO_ARTIFACTS"
+  }
+
+  environment {
+    compute_type    = "BUILD_GENERAL1_SMALL"
+    image           = "aws/codebuild/standard:5.0"
+    type            = "LINUX_CONTAINER"
+    privileged_mode = true
+
+    environment_variable {
+      name  = "AWS_DEFAULT_REGION"
+      value = var.aws_region
+    }
+    environment_variable {
+      name  = "AWS_ACCOUNT_ID"
+      value = data.aws_caller_identity.current.account_id
+    }
+    environment_variable {
+      name  = "IMAGE_REPO_NAME"
+      value = aws_ecr_repository.plugfolio_repo.name
+    }
+  }
+  source {
+    type      = "NO_SOURCE"
+    buildspec = file("${path.module}/../buildspecs/build-docker-image.yml")
+  }
 }
