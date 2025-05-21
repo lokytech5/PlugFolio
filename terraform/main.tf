@@ -218,3 +218,14 @@ resource "aws_codebuild_project" "plugfolio_build_docker_image" {
     buildspec = file("${path.module}/../buildspecs/build-docker-image.yml")
   }
 }
+
+#Lmabda functions
+resource "aws_lambda_function" "trigger_step_functions" {
+  function_name    = "trigger-step-function-lambda"
+  role             = data.aws_iam_role.plugfolio_lambda_role.arn
+  handler          = "trigger_step_function_lambda.lambda_handler"
+  runtime          = "python3.13"
+  architectures    = ["x86_64"]
+  source_code_hash = filebase64sha256("${path.module}/../lambda/trigger_step_functions.zip")
+  filename         = "${path.module}/../lambda/trigger_step_functions.zip"
+}
