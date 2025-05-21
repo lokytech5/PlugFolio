@@ -250,3 +250,75 @@ resource "aws_lambda_function" "create_subdomain" {
   filename         = "${path.module}/../lambda/create_subdomain_lambda.zip"
 
 }
+
+resource "aws_lambda_function" "health_check" {
+  function_name    = "health-check-lambda"
+  role             = data.aws_iam_role.plugfolio_lambda_role.arn
+  handler          = "health_check_lambda.lambda_handler"
+  runtime          = "python3.13"
+  architectures    = ["x86_64"]
+  source_code_hash = filebase64sha256("${path.module}/../lambda/health_check_lambda.zip")
+  filename         = "${path.module}/../lambda/health_check_lambda.zip"
+
+}
+
+resource "aws_lambda_function" "update_last_known_good" {
+  function_name    = "update-last-known-good-lambda"
+  role             = data.aws_iam_role.plugfolio_lambda_role.arn
+  handler          = "update_last_known_good_lambda.lambda_handler"
+  runtime          = "python3.13"
+  architectures    = ["x86_64"]
+  source_code_hash = filebase64sha256("${path.module}/../lambda/update_last_known_good_lambda.zip")
+  filename         = "${path.module}/../lambda/update_last_known_good_lambda.zip"
+
+}
+
+# End of lambda functions
+
+
+
+#APi Gateway
+resource "aws_api_gateway_rest_api" "webhook" {
+  name = "PlugfolioWebhook"
+}
+
+resource "aws_api_gateway_resource" "webhook_resource" {
+  rest_api_id = aws_api_gateway_rest_api.webhook.id
+  parent_id   = aws_api_gateway_rest_api.webhook.root_resource_id
+  path_part   = "webhook"
+}
+
+resource "aws_api_gateway_method" "webhook_method" {
+  rest_api_id   = aws_api_gateway_rest_api.webhook.id
+  resource_id   = aws_api_gateway_resource.webhook_resource.id
+  http_method   = "POST"
+  authorization = "NONE"
+}
+
+resource "aws_api_gateway_integration" "webhook_integration" {
+  rest_api_id             = aws_api_gateway_rest_api.webhook.id
+  resource_id             = aws_api_gateway_resource.webhook_resource.id
+  http_method             = aws_api_gateway_method.webhook_method.http_method
+  type                    = "AWS_PROXY"
+  integration_http_method = "POST"
+  uri                     = aws_lambda_function.trigger_step_functions.invoke_arn
+}
+
+resource "aws_api_gateway_deployment" "webhook_deployment" {
+  rest_api_id = aws_api_gateway_rest_api.webhook.id
+  depends_on  = [aws_api_gateway_integration.webhook_integration]
+}
+
+resource "aws_api_gateway_stage" "webhook_stage" {
+  rest_api_id   = aws_api_gateway_rest_api.webhook.id
+  deployment_id = aws_api_gateway_deployment.webhook_deployment.id
+  stage_name    = "prod"
+}
+
+resource "aws_lambda_permission" "api_gateway_trigger" {
+  statement_id  = "AllowAPIGatewayInvoke"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.trigger_step_functions.function_name
+  principal     = "apigateway.amazonaws.com"
+  source_arn    = "${aws_api_gateway_rest_api.webhook.execution_arn}/*/*"
+}
