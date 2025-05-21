@@ -332,3 +332,8 @@ resource "aws_sns_topic_subscription" "email_subscription" {
   protocol  = "email"
   endpoint  = "rukydiakodue@gmail.com"
 }
+
+#SSM Documents
+resource "aws_ssm_document" "deploy_app" {
+
+}
