@@ -162,3 +162,20 @@ resource "aws_s3_object" "deploy_app_script" {
   content_type = "text/x-shellscript"
   acl          = "private"
 }
+
+resource "aws_s3_object" "rollback_app_script" {
+  bucket = aws_s3_bucket.plugfolio_scripts.id
+  key    = "rollback-app.sh"
+  source = "${path.module}/../scripts/rollback-app.sh"
+  etag   = filemd5("${path.module}/../scripts/rollback-app.sh")
+}
+
+#ECR Repository
+resource "aws_ecr_repository" "plugfolio_repo" {
+  name                 = "plugfolio-app"
+  image_tag_mutability = "MUTABLE"
+  tags = {
+    Name = "PlugfolioECRRepo"
+  }
+
+}
