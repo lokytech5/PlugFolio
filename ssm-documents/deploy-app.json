@@ -1,0 +1,17 @@
+{
+  "schemaVersion": "2.2",
+  "description": "Deploy Plugfolio App",
+  "mainSteps": [
+    {
+      "action": "aws:runShellScript",
+      "name": "runShellScript",
+      "inputs": {
+        "runCommand": [
+          "aws s3 cp s3://${bucket_name}/deploy-app.sh /tmp/deploy-app.sh",
+          "chmod +x /tmp/deploy-app.sh",
+          "/bin/bash /tmp/deploy-app.sh $${repo_url} $${docker_image_repo} $${docker_image_tag} $${subdomain}"
+        ]
+      }
+    }
+  ]
+}

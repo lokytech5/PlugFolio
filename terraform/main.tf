@@ -273,6 +273,18 @@ resource "aws_lambda_function" "update_last_known_good" {
 
 }
 
+resource "aws_lambda_function" "send_command" {
+  function_name    = "send-command-lambda"
+  role             = data.aws_iam_role.plugfolio_lambda_role.arn
+  handler          = "send_command_lambda.lambda_handler"
+  runtime          = "python3.13"
+  architectures    = ["x86_64"]
+  source_code_hash = filebase64sha256("${path.module}/../lambda/send_command_lambda.zip")
+  filename         = "${path.module}/../lambda/send_command_lambda.zip"
+
+}
+
+
 # End of lambda functions
 
 
@@ -324,16 +336,130 @@ resource "aws_lambda_permission" "api_gateway_trigger" {
 
 
 #SNS Topic
-resource "aws_sns_topic" "notification" {
+resource "aws_sns_topic" "plugfolio-notification" {
   name = "PlugfolioNotifications"
 }
 resource "aws_sns_topic_subscription" "email_subscription" {
-  topic_arn = aws_sns_topic.notification.arn
+  topic_arn = aws_sns_topic.plugfolio-notification.arn
   protocol  = "email"
   endpoint  = "rukydiakodue@gmail.com"
 }
 
-#SSM Documents
-resource "aws_ssm_document" "deploy_app" {
+# Step Functions
+resource "aws_sfn_state_machine" "deploy_app_workflow" {
+  name     = "DeployAppWorkflow"
+  role_arn = "arn:aws:iam::061039798341:role/PlugfolioStepFunctionsRole"
 
+  definition = jsonencode({
+    Comment = "Plugfolio Deployment Workflow",
+    StartAt = "FetchParameters",
+    States = {
+      FetchParameters = {
+        Type     = "Task",
+        Resource = aws_lambda_function.fetch_parameters.arn,
+        Next     = "CreateSubdomain"
+      },
+      CreateSubdomain = {
+        Type     = "Task",
+        Resource = aws_lambda_function.create_subdomain.arn,
+        Next     = "BuildDockerImage"
+      },
+      BuildDockerImage = {
+        Type     = "Task",
+        Resource = "arn:aws:states:::codebuild:startBuild.sync",
+        Parameters = {
+          ProjectName = aws_codebuild_project.plugfolio_build_docker_image.name
+        },
+        Next = "DeployApp"
+      },
+      DeployApp = {
+        Type     = "Task",
+        Resource = aws_lambda_function.send_command.arn,
+        Parameters = {
+          DocumentName = aws_ssm_document.deploy_app.name,
+          InstanceIds  = [aws_instance.plugfolio_instance.id],
+          Parameters = {
+            commands = [
+              "/bin/bash /tmp/deploy-app.sh $${repo_url} $${docker_image_repo} $${docker_image_tag} $${subdomain}"
+            ]
+          }
+        },
+        Next = "HealthCheck"
+      },
+      HealthCheck = {
+        Type     = "Task",
+        Resource = aws_lambda_function.health_check.arn,
+        Next     = "CheckHealthStatus"
+      },
+      CheckHealthStatus = {
+        Type = "Choice",
+        Choices = [
+          {
+            Variable     = "$.status",
+            StringEquals = "success",
+            Next         = "UpdateLastKnownGood"
+          }
+        ],
+        Default = "Rollback"
+      },
+      UpdateLastKnownGood = {
+        Type     = "Task",
+        Resource = aws_lambda_function.update_last_known_good.arn,
+        Next     = "NotifySuccess"
+      },
+      Rollback = {
+        Type     = "Task",
+        Resource = aws_lambda_function.send_command.arn,
+        Parameters = {
+          DocumentName = aws_ssm_document.rollback_app.name,
+          InstanceIds  = [aws_instance.plugfolio_instance.id],
+          Parameters = {
+            commands = [
+              "/bin/bash /tmp/rollback-app.sh $${docker_image_repo} $${last_known_good_tag} $${subdomain}"
+            ]
+          }
+        },
+        Next = "NotifyFailure"
+      },
+      NotifySuccess = {
+        Type     = "Task",
+        Resource = "arn:aws:states:::sns:publish",
+        Parameters = {
+          TopicArn = aws_sns_topic.plugfolio-notification.arn,
+          Message  = "Deployment successful for $${subdomain}"
+        },
+        End = true
+      },
+      NotifyFailure = {
+        Type     = "Task",
+        Resource = "arn:aws:states:::sns:publish",
+        Parameters = {
+          TopicArn = aws_sns_topic.plugfolio-notification.arn,
+          Message  = "Deployment failed for $${subdomain}, rolled back to last known good version"
+        },
+        End = true
+      }
+    }
+  })
 }
+
+# SSM Document: Deploy App
+resource "aws_ssm_document" "deploy_app" {
+  name          = "DeployAppDocument"
+  document_type = "Command"
+
+  content = templatefile("${path.module}/../ssm-documents/deploy-app.json", {
+    bucket_name = aws_s3_bucket.plugfolio_scripts.bucket
+  })
+}
+
+# SSM Document: Rollback App
+resource "aws_ssm_document" "rollback_app" {
+  name          = "RollbackAppDocument"
+  document_type = "Command"
+
+  content = templatefile("${path.module}/../ssm-documents/rollback-app.json", {
+    bucket_name = aws_s3_bucket.plugfolio_scripts.bucket
+  })
+}
+
