@@ -228,6 +228,11 @@ resource "aws_lambda_function" "trigger_step_functions" {
   architectures    = ["x86_64"]
   source_code_hash = filebase64sha256("${path.module}/../lambda/trigger_step_function_lambda.zip")
   filename         = "${path.module}/../lambda/trigger_step_function_lambda.zip"
+  environment {
+    variables = {
+      STATE_MACHINE_ARN = aws_sfn_state_machine.deploy_app_workflow.arn
+    }
+  }
 }
 
 resource "aws_lambda_function" "fetch_parameters" {
@@ -248,7 +253,12 @@ resource "aws_lambda_function" "create_subdomain" {
   architectures    = ["x86_64"]
   source_code_hash = filebase64sha256("${path.module}/../lambda/create_subdomain_lambda.zip")
   filename         = "${path.module}/../lambda/create_subdomain_lambda.zip"
-
+  environment {
+    variables = {
+      HOSTED_ZONE_ID = data.aws_route53_zone.main.zone_id
+      EC2_PUBLIC_IP  = aws_instance.plugfolio_instance.public_ip
+    }
+  }
 }
 
 resource "aws_lambda_function" "health_check" {
@@ -462,4 +472,26 @@ resource "aws_ssm_document" "rollback_app" {
     bucket_name = aws_s3_bucket.plugfolio_scripts.bucket
   })
 }
+
+# 1. Docker Image Repository SSM parameter
+resource "aws_ssm_parameter" "docker_image_repo" {
+  name  = "/plugfolio/DockerImageRepo"
+  type  = "String"
+  value = "${data.aws_caller_identity.current.account_id}.dkr.ecr.${var.aws_region}.amazonaws.com/${aws_ecr_repository.plugfolio_repo.name}"
+}
+
+# 2. Root Domain SSM parameter
+resource "aws_ssm_parameter" "root_domain" {
+  name  = "/plugfolio/RootDomain"
+  type  = "String"
+  value = var.root_domain
+}
+
+# 3. Last Known Good Tag SSM parameter
+resource "aws_ssm_parameter" "last_known_good_tag" {
+  name  = "/plugfolio/LastKnownGoodTag"
+  type  = "String"
+  value = "initial"
+}
+
 

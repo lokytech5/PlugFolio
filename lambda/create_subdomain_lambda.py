@@ -1,11 +1,12 @@
+import os
 import json
 import boto3
 
 def lambda_handler(event, context):
     route53 = boto3.client('route53')
-    hosted_zone_id = "${aws_route53_zone.main.zone_id}"
+    hosted_zone_id = os.environ['HOSTED_ZONE_ID']
     subdomain = event['subdomain']
-    ec2_public_ip = "${aws_instance.app_instance.public_ip}"
+    ec2_public_ip = os.environ['EC2_PUBLIC_IP']
     
     # Create Route 53 A record
     response = route53.change_resource_record_sets(
@@ -19,9 +20,7 @@ def lambda_handler(event, context):
                         'Type': 'A',
                         'TTL': 300,
                         'ResourceRecords': [
-                            {
-                                'Value': ec2_public_ip
-                            }
+                            {'Value': ec2_public_ip}
                         ]
                     }
                 }
