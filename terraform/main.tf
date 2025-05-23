@@ -83,6 +83,12 @@ resource "aws_security_group" "plugfolio_sg" {
 }
 
 # EC2 Instance
+
+resource "aws_iam_instance_profile" "plugfolio_ssm_instance_profile" {
+  name = "PlugfolioSSMInstanceProfile"
+  role = data.aws_iam_role.plugfolio_ssm_role.name
+}
+
 resource "aws_instance" "plugfolio_instance" {
   ami                    = "ami-084568db4383264d4"
   instance_type          = var.instance_type
@@ -92,6 +98,7 @@ resource "aws_instance" "plugfolio_instance" {
     my_app_service = file("../services/plugfolio-app.service")
   })
   key_name                    = data.aws_key_pair.existing.key_name
+  iam_instance_profile        = aws_iam_instance_profile.plugfolio_ssm_instance_profile.name
   associate_public_ip_address = true
   tags = {
     Name = "plugfolio-instance"
