@@ -212,6 +212,18 @@ resource "aws_codebuild_project" "plugfolio_build_docker_image" {
       name  = "IMAGE_REPO_NAME"
       value = aws_ecr_repository.plugfolio_repo.name
     }
+    environment_variable {
+      name  = "DOCKER_HUB_USERNAME"
+      value = "dockerhub/credentials:username"
+      type  = "SECRETS_MANAGER"
+    }
+
+    environment_variable {
+      name  = "DOCKER_HUB_PASSWORD"
+      value = "dockerhub/credentials:password"
+      type  = "SECRETS_MANAGER"
+    }
+
   }
   source {
     type      = "GITHUB"
