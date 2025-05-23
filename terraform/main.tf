@@ -400,13 +400,15 @@ resource "aws_sfn_state_machine" "deploy_app_workflow" {
       DeployApp = {
         Type     = "Task",
         Resource = aws_lambda_function.send_command.arn,
-        Parameters = {
-          DocumentName = aws_ssm_document.deploy_app.name,
-          InstanceIds  = [aws_instance.plugfolio_instance.id],
-          Parameters = {
-            commands = [
-              "/bin/bash /tmp/deploy-app.sh $${repo_url} $${docker_image_repo} $${docker_image_tag} $${subdomain}"
-            ]
+        "Parameters" : {
+          "DocumentName" : "${aws_ssm_document.deploy_app.name}",
+          "InstanceIds" : ["${aws_instance.plugfolio_instance.id}"],
+          "Parameters" : {
+            "RepoUrl" : ["$${repo_url}"],
+            "DockerImageRepo" : ["$${docker_image_repo}"],
+            "DockerImageTag" : ["$${docker_image_tag}"],
+            "Subdomain" : ["$${subdomain}"],
+            "BucketName" : ["${aws_s3_bucket.plugfolio_scripts.bucket}"]
           }
         },
         Next = "HealthCheck"
