@@ -10,6 +10,9 @@ SUBDOMAIN="$4"
 APP_DIR="/home/ubuntu/plugfolio-app"
 CONTAINER_NAME="plugfolio-app-container"
 
+# Default app port (will be overridden by plugfolio.yml)
+APP_PORT=80
+
 # Validate input parameters
 if [ -z "$REPO_URL" ] || [ -z "$DOCKER_REGISTRY" ] || [ -z "$NEW_TAG" ] || [ -z "$SUBDOMAIN" ]; then
   echo "Error: Missing required parameters (REPO_URL, DOCKER_REGISTRY, NEW_TAG, SUBDOMAIN)" >&2
@@ -47,6 +50,11 @@ fi
 # Set ownership
 sudo chown -R ubuntu:ubuntu "$APP_DIR"
 
+# Read port from plugfolio.yml if it exists
+if [ -f "$APP_DIR/plugfolio.yml" ]; then
+  APP_PORT=$(grep "port:" "$APP_DIR/plugfolio.yml" | awk '{print $2}' || echo "80")
+fi
+
 # Pull the new Docker image
 echo "Pulling new Docker image: $DOCKER_REGISTRY:$NEW_TAG"
 docker pull "$DOCKER_REGISTRY:$NEW_TAG"
@@ -64,7 +72,7 @@ else
     docker rm "$CONTAINER_NAME"
   fi
   echo "Starting new container..."
-  docker run -d --name "$CONTAINER_NAME" -p 80:80 "$DOCKER_REGISTRY:$NEW_TAG"
+  docker run -d --name "$CONTAINER_NAME" -p 80:$APP_PORT "$DOCKER_REGISTRY:$NEW_TAG"
 fi
 
 # Configure Nginx for the subdomain
@@ -75,7 +83,7 @@ server {
     server_name $SUBDOMAIN;
 
     location = /health {
-        proxy_pass http://localhost:80/health;
+        proxy_pass http://localhost:$APP_PORT/health;
         proxy_set_header Host \$host;
         proxy_set_header X-Real-IP \$remote_addr;
         proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
@@ -83,7 +91,7 @@ server {
     }
 
     location / {
-        proxy_pass http://localhost:80;
+        proxy_pass http://localhost:$APP_PORT;
         include /etc/nginx/proxy_params;
         proxy_set_header Host \$host;
         proxy_set_header X-Real-IP \$remote_addr;
