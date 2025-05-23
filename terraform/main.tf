@@ -218,6 +218,8 @@ resource "aws_codebuild_project" "plugfolio_build_docker_image" {
     location  = "https://github.com/lokytech5/PlugFolio.git"
     buildspec = "buildspecs/build-docker-image.yml"
   }
+
+  source_version = "dev"
 }
 
 #Lmabda functions
