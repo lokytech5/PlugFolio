@@ -1,23 +1,27 @@
 #!/bin/bash
 set -e
 
-echo "Cloning repository..."
-git clone "$REPO_URL" app
-cd app
+# Source directory passed as argument
+SRC_DIR=$1
+cd "$SRC_DIR" || exit 1
 
 echo "Files in repo:"
 ls -l
 
 # Detect tech stack
 if [ -f "plugfolio.yml" ]; then
-  TECH=$(grep "tech:" plugfolio.yml | awk '{print $2}')
+  TECH=$(grep "^tech:" plugfolio.yml | awk '{print $2}' | tr -d '[:space:]')
+  if [ -z "$TECH" ]; then
+    echo "Error: 'tech' field not found in plugfolio.yml or incorrectly formatted."
+    exit 1
+  fi
 else
   if [ -f "package.json" ]; then
     TECH="typescript"
   elif [ -f "requirements.txt" ]; then
     TECH="python"
   else
-    echo "Error: Could not detect tech stack"
+    echo "Error: Could not detect tech stack - missing plugfolio.yml, package.json, or requirements.txt"
     exit 1
   fi
 fi
