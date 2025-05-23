@@ -478,6 +478,7 @@ resource "aws_ssm_document" "deploy_app" {
   })
 }
 
+
 # SSM Document: Rollback App
 resource "aws_ssm_document" "rollback_app" {
   name          = "RollbackAppDocument"
