@@ -178,6 +178,7 @@ resource "aws_s3_object" "rollback_app_script" {
 resource "aws_ecr_repository" "plugfolio_repo" {
   name                 = "plugfolio-app"
   image_tag_mutability = "MUTABLE"
+  force_delete         = true
   tags = {
     Name = "PlugfolioECRRepo"
   }
