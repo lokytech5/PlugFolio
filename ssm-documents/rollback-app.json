@@ -1,0 +1,17 @@
+{
+  "schemaVersion": "2.2",
+  "description": "Rollback Plugfolio App",
+  "mainSteps": [
+    {
+      "action": "aws:runShellScript",
+      "name": "runShellScript",
+      "inputs": {
+        "runCommand": [
+          "aws s3 cp s3://${bucket_name}/rollback-app.sh /tmp/rollback-app.sh",
+          "chmod +x /tmp/rollback-app.sh",
+          "/bin/bash /tmp/rollback-app.sh $${docker_image_repo} $${last_known_good_tag} $${subdomain}"
+        ]
+      }
+    }
+  ]
+}
