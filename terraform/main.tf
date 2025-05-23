@@ -147,7 +147,7 @@ resource "random_string" "suffix" {
   numeric = true
 }
 
-# S3 Bucket for
+# S3 Bucket
 resource "aws_s3_bucket" "plugfolio_scripts" {
   bucket = "plugfolio-scripts${random_string.suffix.result}"
   tags = {
