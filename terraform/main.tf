@@ -214,8 +214,9 @@ resource "aws_codebuild_project" "plugfolio_build_docker_image" {
     }
   }
   source {
-    type      = "NO_SOURCE"
-    buildspec = file("${path.module}/../buildspecs/build-docker-image.yml")
+    type      = "GITHUB"
+    location  = "https://github.com/lokytech5/PlugFolio.git"
+    buildspec = "buildspecs/build-docker-image.yml"
   }
 }
 

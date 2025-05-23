@@ -13,11 +13,10 @@ phases:
       - export AWS_DEFAULT_REGION
       - export AWS_ACCOUNT_ID
       - export IMAGE_REPO_NAME
-      - chmod +x ./scripts/build-docker.sh
 
   build:
     commands:
-      - ./scripts/build-docker.sh "$CODEBUILD_SRC_DIR"
+      - ./scripts/build-docker.sh
 
   post_build:
     commands:
