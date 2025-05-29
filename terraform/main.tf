@@ -423,7 +423,20 @@ resource "aws_sfn_state_machine" "deploy_app_workflow" {
         Parameters = {
           ProjectName = aws_codebuild_project.plugfolio_build_docker_image.name
         },
-        Next = "DeployApp"
+        ResultPath = "$.build_result",
+        Next       = "InjectBuildOutput"
+      },
+      InjectBuildOutput = {
+        Type = "Pass",
+        Parameters = {
+          "repo_url.$"            = "$.repo_url",
+          "docker_image_repo.$"   = "$.docker_image_repo",
+          "docker_image_tag.$"    = "$.build_result.Build.Output.docker_image_tag",
+          "subdomain.$"           = "$.subdomain",
+          "last_known_good_tag.$" = "$.last_known_good_tag"
+        },
+        ResultPath = "$",
+        Next       = "DeployApp"
       },
       DeployApp = {
         Type     = "Task",
@@ -451,7 +464,7 @@ resource "aws_sfn_state_machine" "deploy_app_workflow" {
         Type = "Choice",
         Choices = [
           {
-            Variable     = "$.health_result.health_result.status",
+            Variable     = "$.health_result.status",
             StringEquals = "success",
             Next         = "UpdateLastKnownGood"
           }
@@ -472,8 +485,7 @@ resource "aws_sfn_state_machine" "deploy_app_workflow" {
           Parameters = {
             commands = [
               {
-                "Fn::Sub" : "/bin/bash /tmp/rollback-app.sh $${health_result.health_result.docker_image_repo} $${health_result.health_result.last_known_good_tag} $${health_result.health_result.subdomain}"
-
+                "Fn::Sub" : "/bin/bash /tmp/rollback-app.sh $${health_result.docker_image_repo} $${health_result.last_known_good_tag} $${health_result.subdomain}"
               }
             ]
           }
@@ -501,6 +513,7 @@ resource "aws_sfn_state_machine" "deploy_app_workflow" {
     }
   })
 }
+
 
 
 # SSM Document: Deploy App

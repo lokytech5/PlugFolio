@@ -5,7 +5,7 @@ def lambda_handler(event, context):
     ssm = boto3.client('ssm')
 
     # Supports event.health_result or full input
-    result = event.get('health_result', event)
+    result = event.get('health_check', event)
 
     if result.get('status') == 'success':
         docker_image_tag = result.get('docker_image_tag')
