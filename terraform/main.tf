@@ -423,17 +423,23 @@ resource "aws_sfn_state_machine" "deploy_app_workflow" {
         Parameters = {
           ProjectName = aws_codebuild_project.plugfolio_build_docker_image.name
         },
+        ResultSelector = {
+          "repo_url.$"         = "$.artifacts.files[0].repo_url",
+          "docker_image_tag.$" = "$.artifacts.files[0].docker_image_tag",
+          "subdomain.$"        = "$.artifacts.files[0].subdomain",
+          "Build.$"            = "$.Build"
+        },
         ResultPath = "$.build_result",
-        Next       = "InjectBuildOutput"
+        Next       = "DeployApp"
       },
       InjectBuildOutput = {
         Type = "Pass",
         Parameters = {
-          "repo_url.$"            = "$.build_result.Build.ExportedEnvironmentVariables[?(@.Name=='REPO_URL')].Value[0]",
           "docker_image_repo.$"   = "$.docker_image_repo",
-          "docker_image_tag.$"    = "$.build_result.Build.ExportedEnvironmentVariables[?(@.Name=='IMAGE_TAG')].Value[0]",
-          "subdomain.$"           = "$.build_result.Build.ExportedEnvironmentVariables[?(@.Name=='SUBDOMAIN')].Value[0]",
-          "last_known_good_tag.$" = "$.last_known_good_tag"
+          "last_known_good_tag.$" = "$.last_known_good_tag",
+          "repo_url.$"            = "$.build_result.Build.ExportedEnvironmentVariables[0].Value",
+          "docker_image_tag.$"    = "$.build_result.Build.ExportedEnvironmentVariables[1].Value",
+          "subdomain.$"           = "$.build_result.Build.ExportedEnvironmentVariables[2].Value"
         },
         ResultPath = "$",
         Next       = "DeployApp"
@@ -445,10 +451,10 @@ resource "aws_sfn_state_machine" "deploy_app_workflow" {
           DocumentName = aws_ssm_document.deploy_app.name,
           InstanceIds  = [aws_instance.plugfolio_instance.id],
           Parameters = {
-            RepoUrl         = ["$.repo_url"],
+            RepoUrl         = ["$.build_result.repo_url"],
             DockerImageRepo = ["$.docker_image_repo"],
-            DockerImageTag  = ["$.docker_image_tag"],
-            Subdomain       = ["$.subdomain"],
+            DockerImageTag  = ["$.build_result.docker_image_tag"],
+            Subdomain       = ["$.build_result.subdomain"],
             BucketName      = ["${aws_s3_bucket.plugfolio_scripts.bucket}"]
           }
         },

@@ -39,3 +39,15 @@ phases:
 
       - echo Storing image tag in SSM...
       - aws ssm put-parameter --name /plugfolio/DockerImageTag --value $IMAGE_TAG --type String --overwrite
+
+      - echo Writing output.json...
+      - |
+        echo "{
+          \"repo_url\": \"$REPO_URL\",
+          \"docker_image_tag\": \"$IMAGE_TAG\",
+          \"subdomain\": \"$SUBDOMAIN\"
+        }" > output.json
+
+artifacts:
+  files:
+    - output.json
