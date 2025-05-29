@@ -33,6 +33,7 @@ phases:
       - echo Creating output JSON for Step Function...
       - echo "{\"docker_image_tag\": \"$IMAGE_TAG\"}" > output.json
 
+# This line break is critical!
 artifacts:
   files:
     - output.json
