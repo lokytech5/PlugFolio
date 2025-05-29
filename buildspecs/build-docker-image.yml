@@ -5,10 +5,8 @@ phases:
     commands:
       - echo Logging in to Amazon ECR...
       - aws ecr get-login-password --region $AWS_DEFAULT_REGION | docker login --username AWS --password-stdin $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com
-
       - echo Logging in to Docker Hub...
       - echo $DOCKER_HUB_PASSWORD | docker login -u $DOCKER_HUB_USERNAME --password-stdin
-
       - echo Fetching repository URL from SSM...
       - export REPO_URL=$(aws ssm get-parameter --name /plugfolio/GitRepoUrl --query Parameter.Value --output text)
       - export COMMIT_HASH=$(echo $CODEBUILD_RESOLVED_SOURCE_VERSION | cut -c 1-7)
@@ -26,14 +24,11 @@ phases:
     commands:
       - echo Pushing Docker image...
       - docker push $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$IMAGE_REPO_NAME:$IMAGE_TAG
-
       - echo Storing image tag in SSM...
       - aws ssm put-parameter --name /plugfolio/DockerImageTag --value $IMAGE_TAG --type String --overwrite
-
       - echo Creating output JSON for Step Function...
       - echo "{\"docker_image_tag\": \"$IMAGE_TAG\"}" > output.json
 
-# This line break is critical!
 artifacts:
   files:
     - output.json
