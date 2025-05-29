@@ -181,6 +181,14 @@ resource "aws_s3_object" "rollback_app_script" {
   acl          = "private"
 }
 
+# Lambda Layer for requests stored in s3
+resource "aws_s3_object" "requests_layer_zip" {
+  bucket = aws_s3_bucket.plugfolio_scripts.bucket
+  key    = "layers/requests_layer.zip"
+  source = "${path.module}/../layers/requests_layer.zip"
+  etag   = filemd5("${path.module}/../layers/requests_layer.zip")
+}
+
 #ECR Reposito
 resource "aws_ecr_repository" "plugfolio_repo" {
   name                 = "plugfolio-app"
@@ -292,7 +300,7 @@ resource "aws_lambda_function" "health_check" {
   architectures    = ["x86_64"]
   source_code_hash = filebase64sha256("${path.module}/../lambda/health_check_lambda.zip")
   filename         = "${path.module}/../lambda/health_check_lambda.zip"
-
+  layers           = [aws_lambda_layer_version.requests_layer.arn]
 }
 
 resource "aws_lambda_function" "update_last_known_good" {
@@ -316,6 +324,18 @@ resource "aws_lambda_function" "send_command" {
   filename         = "${path.module}/../lambda/send_command_lambda.zip"
 
 }
+
+# Lambda Layer for requests
+resource "aws_lambda_layer_version" "requests_layer" {
+  layer_name          = "requests-layer"
+  compatible_runtimes = ["python3.13"]
+  s3_bucket           = aws_s3_bucket.plugfolio_scripts.bucket
+  s3_key              = aws_s3_object.requests_layer_zip.key
+  source_code_hash    = filebase64sha256("${path.module}/../layers/requests_layer.zip")
+  description         = "Lambda layer with requests library"
+}
+
+
 
 
 # End of lambda functions
