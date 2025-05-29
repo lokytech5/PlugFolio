@@ -432,11 +432,11 @@ resource "aws_sfn_state_machine" "deploy_app_workflow" {
           DocumentName = aws_ssm_document.deploy_app.name,
           InstanceIds  = [aws_instance.plugfolio_instance.id],
           Parameters = {
-            RepoUrl         = ["$${repo_url}"],
-            DockerImageRepo = ["$${docker_image_repo}"],
-            DockerImageTag  = ["$${docker_image_tag}"],
-            Subdomain       = ["$${subdomain}"],
-            BucketName      = [aws_s3_bucket.plugfolio_scripts.bucket]
+            RepoUrl         = ["$.repo_url"],
+            DockerImageRepo = ["$.docker_image_repo"],
+            DockerImageTag  = ["$.docker_image_tag"],
+            Subdomain       = ["$.subdomain"],
+            BucketName      = ["${aws_s3_bucket.plugfolio_scripts.bucket}"]
           }
         },
         Next = "HealthCheck"
@@ -451,7 +451,7 @@ resource "aws_sfn_state_machine" "deploy_app_workflow" {
         Type = "Choice",
         Choices = [
           {
-            Variable     = "$.health_result.status",
+            Variable     = "$.health_result.health_result.status",
             StringEquals = "success",
             Next         = "UpdateLastKnownGood"
           }
@@ -470,9 +470,11 @@ resource "aws_sfn_state_machine" "deploy_app_workflow" {
           DocumentName = aws_ssm_document.rollback_app.name,
           InstanceIds  = [aws_instance.plugfolio_instance.id],
           Parameters = {
-            commands = {
-              "Fn::Sub" : "/bin/bash /tmp/rollback-app.sh $${health_result.docker_image_repo} $${health_result.last_known_good_tag} $${health_result.subdomain}"
-            }
+            commands = [
+              {
+                "Fn::Sub" : "/bin/bash /tmp/rollback-app.sh ${health_result.health_result.docker_image_repo} ${health_result.health_result.last_known_good_tag} ${health_result.health_result.subdomain}"
+              }
+            ]
           }
         },
         Next = "NotifyFailure"
