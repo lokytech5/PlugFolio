@@ -2,7 +2,7 @@ import json
 import requests
 
 def lambda_handler(event, context):
-    subdomain = event['subdomain']
+    subdomain = event["Command"]["Parameters"]["Subdomain"][0]
     health_url = f"http://{subdomain}/health"
     
     try:
@@ -10,11 +10,8 @@ def lambda_handler(event, context):
         if response.status_code == 200:
             return {
                 'status': 'success',
-                'repo_url': event['repo_url'],
-                'docker_image_repo': event['docker_image_repo'],
-                'docker_image_tag': event['docker_image_tag'],
-                'last_known_good_tag': event['last_known_good_tag'],
-                'subdomain': subdomain
+                'subdomain': subdomain,
+                # Optional: add the rest if needed
             }
         else:
             return {
