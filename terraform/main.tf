@@ -428,29 +428,30 @@ resource "aws_sfn_state_machine" "deploy_app_workflow" {
       DeployApp = {
         Type     = "Task",
         Resource = aws_lambda_function.send_command.arn,
-        "Parameters" : {
-          "DocumentName" : "${aws_ssm_document.deploy_app.name}",
-          "InstanceIds" : ["${aws_instance.plugfolio_instance.id}"],
-          "Parameters" : {
-            "RepoUrl" : ["$${repo_url}"],
-            "DockerImageRepo" : ["$${docker_image_repo}"],
-            "DockerImageTag" : ["$${docker_image_tag}"],
-            "Subdomain" : ["$${subdomain}"],
-            "BucketName" : ["${aws_s3_bucket.plugfolio_scripts.bucket}"]
+        Parameters = {
+          DocumentName = aws_ssm_document.deploy_app.name,
+          InstanceIds  = [aws_instance.plugfolio_instance.id],
+          Parameters = {
+            RepoUrl         = ["$${repo_url}"],
+            DockerImageRepo = ["$${docker_image_repo}"],
+            DockerImageTag  = ["$${docker_image_tag}"],
+            Subdomain       = ["$${subdomain}"],
+            BucketName      = [aws_s3_bucket.plugfolio_scripts.bucket]
           }
         },
         Next = "HealthCheck"
       },
       HealthCheck = {
-        Type     = "Task",
-        Resource = aws_lambda_function.health_check.arn,
-        Next     = "CheckHealthStatus"
+        Type       = "Task",
+        Resource   = aws_lambda_function.health_check.arn,
+        ResultPath = "$.health_result",
+        Next       = "CheckHealthStatus"
       },
       CheckHealthStatus = {
         Type = "Choice",
         Choices = [
           {
-            Variable     = "$.status",
+            Variable     = "$.health_result.status",
             StringEquals = "success",
             Next         = "UpdateLastKnownGood"
           }
@@ -469,9 +470,9 @@ resource "aws_sfn_state_machine" "deploy_app_workflow" {
           DocumentName = aws_ssm_document.rollback_app.name,
           InstanceIds  = [aws_instance.plugfolio_instance.id],
           Parameters = {
-            commands = [
-              "/bin/bash /tmp/rollback-app.sh $${docker_image_repo} $${last_known_good_tag} $${subdomain}"
-            ]
+            commands = {
+              "Fn::Sub" : "/bin/bash /tmp/rollback-app.sh $${health_result.docker_image_repo} $${health_result.last_known_good_tag} $${health_result.subdomain}"
+            }
           }
         },
         Next = "NotifyFailure"
@@ -497,6 +498,7 @@ resource "aws_sfn_state_machine" "deploy_app_workflow" {
     }
   })
 }
+
 
 # SSM Document: Deploy App
 resource "aws_ssm_document" "deploy_app" {

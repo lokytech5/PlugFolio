@@ -24,4 +24,6 @@ def lambda_handler(event, context):
         }
     )
 
-    return json.loads(json.dumps(response, default=default_serializer))
+    return {
+        "ssm_command": json.loads(json.dumps(response, default=default_serializer))
+    }
