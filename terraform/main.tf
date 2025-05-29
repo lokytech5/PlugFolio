@@ -431,7 +431,7 @@ resource "aws_sfn_state_machine" "deploy_app_workflow" {
         Parameters = {
           "repo_url.$"            = "$.repo_url",
           "docker_image_repo.$"   = "$.docker_image_repo",
-          "docker_image_tag.$"    = "$.build_result.Build.Output.docker_image_tag",
+          "docker_image_tag.$"    = "$.build_result.artifacts.docker_image_tag",
           "subdomain.$"           = "$.subdomain",
           "last_known_good_tag.$" = "$.last_known_good_tag"
         },
