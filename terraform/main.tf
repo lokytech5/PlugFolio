@@ -429,10 +429,10 @@ resource "aws_sfn_state_machine" "deploy_app_workflow" {
       InjectBuildOutput = {
         Type = "Pass",
         Parameters = {
-          "repo_url.$"            = "$.repo_url",
+          "repo_url.$"            = "$.build_result.exportedEnvironmentVariables.REPO_URL",
           "docker_image_repo.$"   = "$.docker_image_repo",
-          "docker_image_tag.$"    = "$.build_result.artifacts.docker_image_tag",
-          "subdomain.$"           = "$.subdomain",
+          "docker_image_tag.$"    = "$.build_result.exportedEnvironmentVariables.IMAGE_TAG",
+          "subdomain.$"           = "$.build_result.exportedEnvironmentVariables.SUBDOMAIN",
           "last_known_good_tag.$" = "$.last_known_good_tag"
         },
         ResultPath = "$",
