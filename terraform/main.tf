@@ -432,18 +432,6 @@ resource "aws_sfn_state_machine" "deploy_app_workflow" {
         ResultPath = "$.build_result",
         Next       = "DeployApp"
       },
-      InjectBuildOutput = {
-        Type = "Pass",
-        Parameters = {
-          "docker_image_repo.$"   = "$.docker_image_repo",
-          "last_known_good_tag.$" = "$.last_known_good_tag",
-          "repo_url.$"            = "$.build_result.Build.ExportedEnvironmentVariables[0].Value",
-          "docker_image_tag.$"    = "$.build_result.Build.ExportedEnvironmentVariables[1].Value",
-          "subdomain.$"           = "$.build_result.Build.ExportedEnvironmentVariables[2].Value"
-        },
-        ResultPath = "$",
-        Next       = "DeployApp"
-      },
       DeployApp = {
         Type     = "Task",
         Resource = aws_lambda_function.send_command.arn,
