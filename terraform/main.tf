@@ -472,7 +472,8 @@ resource "aws_sfn_state_machine" "deploy_app_workflow" {
           Parameters = {
             commands = [
               {
-                "Fn::Sub" : "/bin/bash /tmp/rollback-app.sh ${health_result.health_result.docker_image_repo} ${health_result.health_result.last_known_good_tag} ${health_result.health_result.subdomain}"
+                "Fn::Sub" : "/bin/bash /tmp/rollback-app.sh $${health_result.health_result.docker_image_repo} $${health_result.health_result.last_known_good_tag} $${health_result.health_result.subdomain}"
+
               }
             ]
           }
