@@ -422,7 +422,7 @@ resource "aws_sfn_state_machine" "deploy_app_workflow" {
         Type       = "Task",
         Resource   = aws_lambda_function.fetch_parameters.arn,
         Next       = "CreateSubdomain",
-        ResultPath = "$.fetched_params" # Store fetched params under a key
+        ResultPath = "$.fetched_params"
       },
       CreateSubdomain = {
         Type     = "Task",
@@ -450,8 +450,8 @@ resource "aws_sfn_state_machine" "deploy_app_workflow" {
         Type     = "Task",
         Resource = aws_lambda_function.extract_env_vars.arn,
         Parameters = {
-          "ExportedEnvironmentVariables.$" : "$.build_result.Build.ExportedEnvironmentVariables",
-          "KeysToExtract" : ["REPO_URL", "IMAGE_TAG", "SUBDOMAIN"]
+          "ExportedEnvironmentVariables.$" = "$.build_result.Build.ExportedEnvironmentVariables",
+          "KeysToExtract"                  = ["REPO_URL", "IMAGE_TAG", "SUBDOMAIN"]
         },
         ResultPath = "$.flat_vars",
         Next       = "DeployApp"
@@ -468,10 +468,12 @@ resource "aws_sfn_state_machine" "deploy_app_workflow" {
             "DockerImageTag.$"   = "States.Array($.flat_vars.extracted.IMAGE_TAG)",
             "Subdomain.$"        = "States.Array($.created_subdomain.subdomain)",
             "LastKnownGoodTag.$" = "States.Array($.fetched_params.last_known_good_tag)",
-            "BucketName"         = ["${aws_s3_bucket.plugfolio_scripts.bucket}"]
+            "BucketName"         = ["${aws_s3_bucket.plugfolio_scripts.bucket}"],
+            "InternalPort.$"     = "States.Array($.fetched_params.internal_port)" # Use dynamic value
           }
         },
-        Next = "HealthCheck"
+        ResultPath = "$.ssm_command",
+        Next       = "HealthCheck"
       },
       HealthCheck = {
         Type       = "Task",
@@ -502,12 +504,13 @@ resource "aws_sfn_state_machine" "deploy_app_workflow" {
           "DocumentName" = aws_ssm_document.rollback_app.name,
           "InstanceIds"  = [aws_instance.plugfolio_instance.id],
           "Parameters" = {
-            "DockerImageRepo.$"  = "States.Array($.fetched_params.docker_image_repo)",
-            "LastKnownGoodTag.$" = "States.Array($.fetched_params.last_known_good_tag)",
+            "DockerImageRepo.$"  = "$.ssm_command.ssm_command.Command.Parameters.DockerImageRepo",
+            "LastKnownGoodTag.$" = "$.ssm_command.ssm_command.Command.Parameters.LastKnownGoodTag",
             "Subdomain.$"        = "States.Array($.created_subdomain.subdomain)",
             "BucketName"         = ["${aws_s3_bucket.plugfolio_scripts.bucket}"],
             "RepoUrl"            = [""],
-            "DockerImageTag"     = [""]
+            "DockerImageTag"     = [""],
+            "InternalPort.$"     = "States.Array($.fetched_params.internal_port)" # Use dynamic value
           }
         },
         Next = "NotifyFailure"
@@ -517,7 +520,7 @@ resource "aws_sfn_state_machine" "deploy_app_workflow" {
         Resource = "arn:aws:states:::sns:publish",
         Parameters = {
           TopicArn = aws_sns_topic.plugfolio-notification.arn,
-          Message  = "Deployment successful for $${subdomain}"
+          Message  = "Deployment successful for $.created_subdomain.subdomain"
         },
         ResultPath = null,
         End        = true
@@ -527,15 +530,13 @@ resource "aws_sfn_state_machine" "deploy_app_workflow" {
         Resource = "arn:aws:states:::sns:publish",
         Parameters = {
           TopicArn = aws_sns_topic.plugfolio-notification.arn,
-          Message  = "Deployment failed for $${subdomain}, rolled back to last known good version"
+          Message  = "Deployment failed for $.created_subdomain.subdomain, rolled back to last known good version"
         },
         End = true
       }
     }
   })
 }
-
-
 
 # SSM Document: Deploy App
 resource "aws_ssm_document" "deploy_app" {
@@ -546,7 +547,6 @@ resource "aws_ssm_document" "deploy_app" {
     bucket_name = aws_s3_bucket.plugfolio_scripts.bucket
   })
 }
-
 
 # SSM Document: Rollback App
 resource "aws_ssm_document" "rollback_app" {

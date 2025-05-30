@@ -6,13 +6,16 @@ DOCKER_REGISTRY="$2"
 NEW_TAG="$3"
 SUBDOMAIN="$4"
 LAST_KNOWN_GOOD_TAG="$5"
+BUCKET_NAME="$6"
+INTERNAL_PORT="$7"  # New parameter
 
 # Application directory and container name
 APP_DIR="/home/ubuntu/plugfolio-app"
 CONTAINER_NAME="plugfolio-app-container"
 
-# Default app port (will be overridden by plugfolio.yml)
-APP_PORT=80
+# Default ports
+EXTERNAL_PORT=80
+INTERNAL_PORT=${INTERNAL_PORT:-8000}  # Fallback to 8000 if not provided
 
 # Validate input parameters
 if [ -z "$REPO_URL" ] || [ -z "$DOCKER_REGISTRY" ] || [ -z "$NEW_TAG" ] || [ -z "$SUBDOMAIN" ]; then
@@ -51,40 +54,44 @@ fi
 # Set ownership
 sudo chown -R ubuntu:ubuntu "$APP_DIR"
 
-# Read port from plugfolio.yml if it exists
-if [ -f "$APP_DIR/plugfolio.yml" ]; then
-  APP_PORT=$(grep "port:" "$APP_DIR/plugfolio.yml" | awk '{print $2}' || echo "80")
+# Download docker-compose.yml from S3 if it exists
+if [ -n "$BUCKET_NAME" ]; then
+  aws s3 cp "s3://$BUCKET_NAME/docker-compose.yml" "$APP_DIR/docker-compose.yml" || true
+fi
+
+# Update docker-compose.yml port mapping if it exists
+if [ -f "$APP_DIR/docker-compose.yml" ]; then
+  sed -i "s/ports:.*$/ports:\n      - \"$EXTERNAL_PORT:$INTERNAL_PORT\"/" "$APP_DIR/docker-compose.yml"
 fi
 
 # Pull the new Docker image
 echo "Pulling new Docker image: $DOCKER_REGISTRY:$NEW_TAG"
+aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin $DOCKER_REGISTRY
 docker pull "$DOCKER_REGISTRY:$NEW_TAG"
 
 # Deploy the application (support both docker run and docker-compose)
 if [ -f "$APP_DIR/docker-compose.yml" ]; then
-  # Use Docker Compose if available
   echo "Deploying with Docker Compose..."
   sudo -u ubuntu docker-compose -f "$APP_DIR/docker-compose.yml" up -d
 else
-  # Otherwise, use a single container
   if docker ps -q -f name="$CONTAINER_NAME"; then
     echo "Stopping existing container..."
     docker stop "$CONTAINER_NAME"
     docker rm "$CONTAINER_NAME"
   fi
   echo "Starting new container..."
-  docker run -d --name "$CONTAINER_NAME" -p 80:$APP_PORT "$DOCKER_REGISTRY:$NEW_TAG"
+  docker run -d --name "$CONTAINER_NAME" -p $EXTERNAL_PORT:$INTERNAL_PORT "$DOCKER_REGISTRY:$NEW_TAG"
 fi
 
 # Configure Nginx for the subdomain
 NGINX_CONF="/etc/nginx/sites-available/default"
 sudo tee $NGINX_CONF > /dev/null <<EOF
 server {
-    listen 80;
+    listen $EXTERNAL_PORT;
     server_name $SUBDOMAIN;
 
     location = /health {
-        proxy_pass http://localhost:$APP_PORT/health;
+        proxy_pass http://localhost:$INTERNAL_PORT/health;
         proxy_set_header Host \$host;
         proxy_set_header X-Real-IP \$remote_addr;
         proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
@@ -92,7 +99,7 @@ server {
     }
 
     location / {
-        proxy_pass http://localhost:$APP_PORT;
+        proxy_pass http://localhost:$INTERNAL_PORT;
         include /etc/nginx/proxy_params;
         proxy_set_header Host \$host;
         proxy_set_header X-Real-IP \$remote_addr;

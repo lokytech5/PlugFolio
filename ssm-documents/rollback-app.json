@@ -5,7 +5,8 @@
     "DockerImageRepo": { "type": "String" },
     "LastKnownGoodTag": { "type": "String" },
     "Subdomain": { "type": "String" },
-    "BucketName": { "type": "String" }
+    "BucketName": { "type": "String" },
+    "InternalPort": { "type": "String" }
   },
   "mainSteps": [
     {

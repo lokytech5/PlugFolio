@@ -7,7 +7,8 @@
     "DockerImageTag": { "type": "String" },
     "Subdomain": { "type": "String" },
     "LastKnownGoodTag": { "type": "String" },
-    "BucketName": { "type": "String" }
+    "BucketName": { "type": "String" },
+    "InternalPort": { "type": "String" }
 
   },
   "mainSteps": [
