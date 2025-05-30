@@ -12,20 +12,21 @@ def lambda_handler(event, context):
 
     instance_ids = event.get('InstanceIds', [])
     document_name = event.get('DocumentName')
+    parameters_input = event.get("Parameters", {})
 
-    # Read values directly from flattened Step Function state
-    repo_url = event.get("repo_url")
-    docker_image_repo = event.get("docker_image_repo")
-    docker_image_tag = event.get("docker_image_tag")
-    subdomain = event.get("subdomain")
-    last_known_good_tag = event.get("last_known_good_tag")
+    # Read values from the Parameters object passed in
+    repo_url = parameters_input.get("RepoUrl", [""])[0]
+    docker_image_repo = parameters_input.get("DockerImageRepo", [""])[0]
+    docker_image_tag = parameters_input.get("DockerImageTag", [""])[0]
+    subdomain = parameters_input.get("Subdomain", [""])[0]
+    last_known_good_tag = parameters_input.get("LastKnownGoodTag", [""])[0]
 
     parameters = {
-        "RepoUrl":           [repo_url or ""],
-        "DockerImageRepo":   [docker_image_repo or ""],
-        "DockerImageTag":    [docker_image_tag or ""],
-        "Subdomain":         [subdomain or ""],
-        "LastKnownGoodTag":  [last_known_good_tag or ""]
+        "RepoUrl":          [repo_url],
+        "DockerImageRepo":  [docker_image_repo],
+        "DockerImageTag":   [docker_image_tag],
+        "Subdomain":        [subdomain],
+        "LastKnownGoodTag": [last_known_good_tag]
     }
 
     if not instance_ids or not document_name:

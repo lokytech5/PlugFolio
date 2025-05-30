@@ -455,11 +455,11 @@ resource "aws_sfn_state_machine" "deploy_app_workflow" {
           DocumentName = aws_ssm_document.deploy_app.name,
           InstanceIds  = [aws_instance.plugfolio_instance.id],
           Parameters = {
-            RepoUrl         = ["$.flat_vars.extracted.REPO_URL"],
-            DockerImageRepo = ["$.docker_image_repo"],
-            DockerImageTag  = ["$.flat_vars.extracted.IMAGE_TAG"],
-            Subdomain       = ["$.flat_vars.extracted.SUBDOMAIN"],
-            BucketName      = ["${aws_s3_bucket.plugfolio_scripts.bucket}"]
+            "RepoUrl.$"         = "States.Array($.flat_vars.extracted.REPO_URL)",
+            "DockerImageRepo.$" = "States.Array($.docker_image_repo)",
+            "DockerImageTag.$"  = "States.Array($.flat_vars.extracted.IMAGE_TAG)",
+            "Subdomain.$"       = "States.Array($.flat_vars.extracted.SUBDOMAIN)",
+            "BucketName"        = ["${aws_s3_bucket.plugfolio_scripts.bucket}"]
           }
         },
         Next = "HealthCheck"
