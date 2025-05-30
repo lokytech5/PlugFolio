@@ -189,6 +189,14 @@ resource "aws_s3_object" "requests_layer_zip" {
   etag   = filemd5("${path.module}/../layers/requests_layer.zip")
 }
 
+# S3 Object for PyYAML Layer
+resource "aws_s3_object" "pyyaml_layer_zip" {
+  bucket = aws_s3_bucket.plugfolio_scripts.bucket
+  key    = "layers/pyyaml_layer.zip"
+  source = "${path.module}/../layers/pyyaml_layer.zip"
+  etag   = filemd5("${path.module}/../layers/pyyaml_layer.zip")
+}
+
 #ECR Reposito
 resource "aws_ecr_repository" "plugfolio_repo" {
   name                 = "plugfolio-app"
@@ -274,6 +282,7 @@ resource "aws_lambda_function" "fetch_parameters" {
   architectures    = ["x86_64"]
   source_code_hash = filebase64sha256("${path.module}/../lambda/fetch_parameters_lambda.zip")
   filename         = "${path.module}/../lambda/fetch_parameters_lambda.zip"
+  layers           = [aws_lambda_layer_version.pyyaml_layer.arn]
 }
 
 resource "aws_lambda_function" "create_subdomain" {
@@ -333,6 +342,16 @@ resource "aws_lambda_layer_version" "requests_layer" {
   s3_key              = aws_s3_object.requests_layer_zip.key
   source_code_hash    = filebase64sha256("${path.module}/../layers/requests_layer.zip")
   description         = "Lambda layer with requests library"
+}
+
+# Lambda Layer for PyYAML
+resource "aws_lambda_layer_version" "pyyaml_layer" {
+  layer_name          = "pyyaml-layer"
+  compatible_runtimes = ["python3.13"]
+  s3_bucket           = aws_s3_bucket.plugfolio_scripts.bucket
+  s3_key              = aws_s3_object.pyyaml_layer_zip.key
+  source_code_hash    = filebase64sha256("${path.module}/../layers/pyyaml_layer.zip")
+  description         = "Lambda layer with PyYAML library"
 }
 
 # Lambda ro extract environment variables from CodeBuild
