@@ -434,15 +434,20 @@ resource "aws_sfn_state_machine" "deploy_app_workflow" {
         Parameters = {
           ProjectName = aws_codebuild_project.plugfolio_build_docker_image.name
         },
-        ResultSelector = {
-          "repo_url.$"         = "$.Build.ExportedEnvironmentVariables[?(@.Name=='REPO_URL')].Value[0]",
-          "docker_image_tag.$" = "$.Build.ExportedEnvironmentVariables[?(@.Name=='IMAGE_TAG')].Value[0]",
-          "subdomain.$"        = "$.Build.ExportedEnvironmentVariables[?(@.Name=='SUBDOMAIN')].Value[0]",
-          "Build.$"            = "$.Build"
-        },
         ResultPath = "$.build_result",
+        Next       = "ExtractBuildVars"
+      },
+      ExtractBuildVars = {
+        Type     = "Task",
+        Resource = aws_lambda_function.extract_env_vars.arn,
+        Parameters = {
+          "ExportedEnvironmentVariables.$" : "$.build_result.Build.ExportedEnvironmentVariables",
+          "KeysToExtract" : ["REPO_URL", "IMAGE_TAG", "SUBDOMAIN"]
+        },
+        ResultPath = "$.flat_vars",
         Next       = "DeployApp"
       },
+
       DeployApp = {
         Type     = "Task",
         Resource = aws_lambda_function.send_command.arn,
@@ -450,10 +455,10 @@ resource "aws_sfn_state_machine" "deploy_app_workflow" {
           DocumentName = aws_ssm_document.deploy_app.name,
           InstanceIds  = [aws_instance.plugfolio_instance.id],
           Parameters = {
-            RepoUrl         = ["$.build_result.repo_url"],
+            RepoUrl         = ["$.flat_vars.extracted.REPO_URL"],
             DockerImageRepo = ["$.docker_image_repo"],
-            DockerImageTag  = ["$.build_result.docker_image_tag"],
-            Subdomain       = ["$.build_result.subdomain"],
+            DockerImageTag  = ["$.flat_vars.extracted.IMAGE_TAG"],
+            Subdomain       = ["$.flat_vars.extracted.SUBDOMAIN"],
             BucketName      = ["${aws_s3_bucket.plugfolio_scripts.bucket}"]
           }
         },
