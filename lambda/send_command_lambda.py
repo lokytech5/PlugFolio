@@ -20,13 +20,15 @@ def lambda_handler(event, context):
     docker_image_tag = parameters_input.get("DockerImageTag", [""])[0]
     subdomain = parameters_input.get("Subdomain", [""])[0]
     last_known_good_tag = parameters_input.get("LastKnownGoodTag", [""])[0]
+    bucket_name = parameters_input.get("BucketName", [""])[0]  # Add BucketName
 
     parameters = {
-        "RepoUrl":          [repo_url],
-        "DockerImageRepo":  [docker_image_repo],
-        "DockerImageTag":   [docker_image_tag],
-        "Subdomain":        [subdomain],
-        "LastKnownGoodTag": [last_known_good_tag]
+        "RepoUrl": [repo_url],
+        "DockerImageRepo": [docker_image_repo],
+        "DockerImageTag": [docker_image_tag],
+        "Subdomain": [subdomain],
+        "LastKnownGoodTag": [last_known_good_tag],
+        "BucketName": [bucket_name]  # Include BucketName
     }
 
     if not instance_ids or not document_name:
