@@ -499,14 +499,15 @@ resource "aws_sfn_state_machine" "deploy_app_workflow" {
         Type     = "Task",
         Resource = aws_lambda_function.send_command.arn,
         Parameters = {
-          DocumentName = aws_ssm_document.rollback_app.name,
-          InstanceIds  = [aws_instance.plugfolio_instance.id],
-          Parameters = {
-            "commands" = [
-              "/bin/bash /tmp/rollback-app.sh $.health_result.docker_image_repo $.health_result.last_known_good_tag $.created_subdomain.subdomain"
-            ]
-
-
+          "DocumentName" = aws_ssm_document.rollback_app.name,
+          "InstanceIds"  = [aws_instance.plugfolio_instance.id],
+          "Parameters" = {
+            "DockerImageRepo.$"  = "States.Array($.docker_image_repo)",
+            "LastKnownGoodTag.$" = "States.Array($.last_known_good_tag)",
+            "Subdomain.$"        = "States.Array($.created_subdomain.subdomain)",
+            "BucketName"         = ["${aws_s3_bucket.plugfolio_scripts.bucket}"],
+            "RepoUrl"            = [""],
+            "DockerImageTag"     = [""]
           }
         },
         Next = "NotifyFailure"
