@@ -16,7 +16,7 @@
         "runCommand": [
           "aws s3 cp s3://{{ BucketName }}/rollback-app.sh /tmp/rollback-app.sh",
           "chmod +x /tmp/rollback-app.sh",
-          "/bin/bash /tmp/rollback-app.sh {{ DockerImageRepo }} {{ LastKnownGoodTag }} {{ Subdomain }}"
+          "/bin/bash /tmp/rollback-app.sh {{ DockerImageRepo }} {{ LastKnownGoodTag }} {{ Subdomain }} {{ BucketName }} {{ InternalPort }}"
         ]
       }
     }
