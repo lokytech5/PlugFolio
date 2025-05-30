@@ -459,7 +459,8 @@ resource "aws_sfn_state_machine" "deploy_app_workflow" {
             "DockerImageRepo.$" = "States.Array($.docker_image_repo)",
             "DockerImageTag.$"  = "States.Array($.flat_vars.extracted.IMAGE_TAG)",
             "Subdomain.$"       = "States.Array($.flat_vars.extracted.SUBDOMAIN)",
-            "BucketName"        = ["${aws_s3_bucket.plugfolio_scripts.bucket}"]
+            "LastKnownGoodTag.$" : "States.Array($.last_known_good_tag)",
+            "BucketName" = ["${aws_s3_bucket.plugfolio_scripts.bucket}"]
           }
         },
         Next = "HealthCheck"

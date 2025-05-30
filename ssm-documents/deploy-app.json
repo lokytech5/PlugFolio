@@ -6,7 +6,9 @@
     "DockerImageRepo": { "type": "String" },
     "DockerImageTag": { "type": "String" },
     "Subdomain": { "type": "String" },
+    "LastKnownGoodTag": { "type": "String" },
     "BucketName": { "type": "String" }
+
   },
   "mainSteps": [
     {
@@ -16,7 +18,7 @@
         "runCommand": [
           "aws s3 cp s3://{{ BucketName }}/deploy-app.sh /tmp/deploy-app.sh",
           "chmod +x /tmp/deploy-app.sh",
-          "/bin/bash /tmp/deploy-app.sh {{ RepoUrl }} {{ DockerImageRepo }} {{ DockerImageTag }} {{ Subdomain }}"
+          "/bin/bash /tmp/deploy-app.sh {{ RepoUrl }} {{ DockerImageRepo }} {{ DockerImageTag }} {{ Subdomain }} {{ LastKnownGoodTag }}"
         ]
       }
     }

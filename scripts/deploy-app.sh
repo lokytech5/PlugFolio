@@ -5,6 +5,7 @@ REPO_URL="$1"
 DOCKER_REGISTRY="$2"
 NEW_TAG="$3"
 SUBDOMAIN="$4"
+LAST_KNOWN_GOOD_TAG="$5"
 
 # Application directory and container name
 APP_DIR="/home/ubuntu/plugfolio-app"
@@ -111,3 +112,5 @@ else
 fi
 
 echo "Deployment completed successfully"
+echo "Deploying new version: $NEW_TAG"
+echo "Previous good version: $LAST_KNOWN_GOOD_TAG"
