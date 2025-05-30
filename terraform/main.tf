@@ -452,15 +452,15 @@ resource "aws_sfn_state_machine" "deploy_app_workflow" {
         Type     = "Task",
         Resource = aws_lambda_function.send_command.arn,
         Parameters = {
-          DocumentName = aws_ssm_document.deploy_app.name,
-          InstanceIds  = [aws_instance.plugfolio_instance.id],
-          Parameters = {
-            "RepoUrl.$"         = "States.Array($.flat_vars.extracted.REPO_URL)",
-            "DockerImageRepo.$" = "States.Array($.docker_image_repo)",
-            "DockerImageTag.$"  = "States.Array($.flat_vars.extracted.IMAGE_TAG)",
-            "Subdomain.$"       = "States.Array($.flat_vars.extracted.SUBDOMAIN)",
-            "LastKnownGoodTag.$" : "States.Array($.last_known_good_tag)",
-            "BucketName" = ["${aws_s3_bucket.plugfolio_scripts.bucket}"]
+          "DocumentName" = aws_ssm_document.deploy_app.name,
+          "InstanceIds"  = [aws_instance.plugfolio_instance.id],
+          "Parameters" = {
+            "RepoUrl.$"          = "States.Array($.flat_vars.extracted.REPO_URL)",
+            "DockerImageRepo.$"  = "States.Array($.docker_image_repo)",
+            "DockerImageTag.$"   = "States.Array($.flat_vars.extracted.IMAGE_TAG)",
+            "Subdomain.$"        = "States.Array($.flat_vars.extracted.SUBDOMAIN)",
+            "LastKnownGoodTag.$" = "States.Array($.last_known_good_tag)",
+            "BucketName"         = ["${aws_s3_bucket.plugfolio_scripts.bucket}"]
           }
         },
         Next = "HealthCheck"
@@ -494,11 +494,10 @@ resource "aws_sfn_state_machine" "deploy_app_workflow" {
           DocumentName = aws_ssm_document.rollback_app.name,
           InstanceIds  = [aws_instance.plugfolio_instance.id],
           Parameters = {
-            commands = [
-              {
-                "Fn::Sub" : "/bin/bash /tmp/rollback-app.sh $${health_result.docker_image_repo} $${health_result.last_known_good_tag} $${health_result.subdomain}"
-              }
+            "commands" = [
+              "/bin/bash /tmp/rollback-app.sh $.health_result.docker_image_repo $.health_result.last_known_good_tag $.health_result.subdomain"
             ]
+
           }
         },
         Next = "NotifyFailure"
