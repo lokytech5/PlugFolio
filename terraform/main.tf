@@ -422,17 +422,17 @@ resource "aws_sfn_state_machine" "deploy_app_workflow" {
         Type       = "Task",
         Resource   = aws_lambda_function.fetch_parameters.arn,
         Next       = "CreateSubdomain",
-        ResultPath = "$.fetched_params"
+        ResultPath = "$.fetched_params" # Store fetched params under a key
       },
       CreateSubdomain = {
         Type     = "Task",
         Resource = aws_lambda_function.create_subdomain.arn,
         Parameters = {
-          "subdomain.$"           = "$.subdomain",
-          "repo_url.$"            = "$.repo_url",
-          "docker_image_repo.$"   = "$.docker_image_repo",
-          "docker_image_tag.$"    = "$.docker_image_tag",
-          "last_known_good_tag.$" = "$.last_known_good_tag"
+          "subdomain.$"           = "$.fetched_params.subdomain",
+          "repo_url.$"            = "$.fetched_params.repo_url",
+          "docker_image_repo.$"   = "$.fetched_params.docker_image_repo",
+          "docker_image_tag.$"    = "$.fetched_params.docker_image_tag",
+          "last_known_good_tag.$" = "$.fetched_params.last_known_good_tag"
         },
         ResultPath = "$.created_subdomain",
         Next       = "BuildDockerImage"
@@ -450,8 +450,8 @@ resource "aws_sfn_state_machine" "deploy_app_workflow" {
         Type     = "Task",
         Resource = aws_lambda_function.extract_env_vars.arn,
         Parameters = {
-          "ExportedEnvironmentVariables.$" = "$.build_result.Build.ExportedEnvironmentVariables",
-          "KeysToExtract"                  = ["REPO_URL", "IMAGE_TAG", "SUBDOMAIN"]
+          "ExportedEnvironmentVariables.$" : "$.build_result.Build.ExportedEnvironmentVariables",
+          "KeysToExtract" : ["REPO_URL", "IMAGE_TAG", "SUBDOMAIN"]
         },
         ResultPath = "$.flat_vars",
         Next       = "DeployApp"
@@ -474,13 +474,8 @@ resource "aws_sfn_state_machine" "deploy_app_workflow" {
         Next = "HealthCheck"
       },
       HealthCheck = {
-        Type     = "Task",
-        Resource = aws_lambda_function.health_check.arn,
-        Parameters = {
-          "created_subdomain.$" = "$.created_subdomain",
-          "fetched_params.$"    = "$.fetched_params",
-          "flat_vars.$"         = "$.flat_vars"
-        },
+        Type       = "Task",
+        Resource   = aws_lambda_function.health_check.arn,
         ResultPath = "$.health_result",
         Next       = "CheckHealthStatus"
       },
