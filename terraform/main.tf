@@ -419,9 +419,10 @@ resource "aws_sfn_state_machine" "deploy_app_workflow" {
     StartAt = "FetchParameters",
     States = {
       FetchParameters = {
-        Type     = "Task",
-        Resource = aws_lambda_function.fetch_parameters.arn,
-        Next     = "CreateSubdomain"
+        Type       = "Task",
+        Resource   = aws_lambda_function.fetch_parameters.arn,
+        Next       = "CreateSubdomain",
+        ResultPath = "$.fetched_params"
       },
       CreateSubdomain = {
         Type     = "Task",
@@ -449,13 +450,12 @@ resource "aws_sfn_state_machine" "deploy_app_workflow" {
         Type     = "Task",
         Resource = aws_lambda_function.extract_env_vars.arn,
         Parameters = {
-          "ExportedEnvironmentVariables.$" : "$.build_result.Build.ExportedEnvironmentVariables",
-          "KeysToExtract" : ["REPO_URL", "IMAGE_TAG", "SUBDOMAIN"]
+          "ExportedEnvironmentVariables.$" = "$.build_result.Build.ExportedEnvironmentVariables",
+          "KeysToExtract"                  = ["REPO_URL", "IMAGE_TAG", "SUBDOMAIN"]
         },
         ResultPath = "$.flat_vars",
         Next       = "DeployApp"
       },
-
       DeployApp = {
         Type     = "Task",
         Resource = aws_lambda_function.send_command.arn,
@@ -464,18 +464,23 @@ resource "aws_sfn_state_machine" "deploy_app_workflow" {
           "InstanceIds"  = [aws_instance.plugfolio_instance.id],
           "Parameters" = {
             "RepoUrl.$"          = "States.Array($.flat_vars.extracted.REPO_URL)",
-            "DockerImageRepo.$"  = "States.Array($.docker_image_repo)",
+            "DockerImageRepo.$"  = "States.Array($.fetched_params.docker_image_repo)",
             "DockerImageTag.$"   = "States.Array($.flat_vars.extracted.IMAGE_TAG)",
-            "Subdomain.$"        = "States.Array($.created_subdomain.subdomain)"
-            "LastKnownGoodTag.$" = "States.Array($.last_known_good_tag)",
+            "Subdomain.$"        = "States.Array($.created_subdomain.subdomain)",
+            "LastKnownGoodTag.$" = "States.Array($.fetched_params.last_known_good_tag)",
             "BucketName"         = ["${aws_s3_bucket.plugfolio_scripts.bucket}"]
           }
         },
         Next = "HealthCheck"
       },
       HealthCheck = {
-        Type       = "Task",
-        Resource   = aws_lambda_function.health_check.arn,
+        Type     = "Task",
+        Resource = aws_lambda_function.health_check.arn,
+        Parameters = {
+          "created_subdomain.$" = "$.created_subdomain",
+          "fetched_params.$"    = "$.fetched_params",
+          "flat_vars.$"         = "$.flat_vars"
+        },
         ResultPath = "$.health_result",
         Next       = "CheckHealthStatus"
       },
@@ -502,8 +507,8 @@ resource "aws_sfn_state_machine" "deploy_app_workflow" {
           "DocumentName" = aws_ssm_document.rollback_app.name,
           "InstanceIds"  = [aws_instance.plugfolio_instance.id],
           "Parameters" = {
-            "DockerImageRepo.$"  = "States.Array($.docker_image_repo)",
-            "LastKnownGoodTag.$" = "States.Array($.last_known_good_tag)",
+            "DockerImageRepo.$"  = "States.Array($.fetched_params.docker_image_repo)",
+            "LastKnownGoodTag.$" = "States.Array($.fetched_params.last_known_good_tag)",
             "Subdomain.$"        = "States.Array($.created_subdomain.subdomain)",
             "BucketName"         = ["${aws_s3_bucket.plugfolio_scripts.bucket}"],
             "RepoUrl"            = [""],
