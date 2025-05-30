@@ -335,6 +335,17 @@ resource "aws_lambda_layer_version" "requests_layer" {
   description         = "Lambda layer with requests library"
 }
 
+# Lambda ro extract environment variables from CodeBuild
+resource "aws_lambda_function" "extract_env_vars" {
+  function_name    = "extract-env-vars-lambda"
+  role             = data.aws_iam_role.plugfolio_lambda_role.arn
+  handler          = "extract_env_vars_lambda.lambda_handler"
+  runtime          = "python3.13"
+  architectures    = ["x86_64"]
+  source_code_hash = filebase64sha256("${path.module}/../lambda/extract_env_vars_lambda.zip")
+  filename         = "${path.module}/../lambda/extract_env_vars_lambda.zip"
+}
+
 
 
 
@@ -424,9 +435,9 @@ resource "aws_sfn_state_machine" "deploy_app_workflow" {
           ProjectName = aws_codebuild_project.plugfolio_build_docker_image.name
         },
         ResultSelector = {
-          "repo_url.$"         = "$.artifacts.files[0].repo_url",
-          "docker_image_tag.$" = "$.artifacts.files[0].docker_image_tag",
-          "subdomain.$"        = "$.artifacts.files[0].subdomain",
+          "repo_url.$"         = "$.Build.ExportedEnvironmentVariables[?(@.Name=='REPO_URL')].Value[0]",
+          "docker_image_tag.$" = "$.Build.ExportedEnvironmentVariables[?(@.Name=='IMAGE_TAG')].Value[0]",
+          "subdomain.$"        = "$.Build.ExportedEnvironmentVariables[?(@.Name=='SUBDOMAIN')].Value[0]",
           "Build.$"            = "$.Build"
         },
         ResultPath = "$.build_result",
@@ -493,7 +504,8 @@ resource "aws_sfn_state_machine" "deploy_app_workflow" {
           TopicArn = aws_sns_topic.plugfolio-notification.arn,
           Message  = "Deployment successful for $${subdomain}"
         },
-        End = true
+        ResultPath = null,
+        End        = true
       },
       NotifyFailure = {
         Type     = "Task",
