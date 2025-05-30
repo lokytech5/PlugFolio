@@ -426,7 +426,15 @@ resource "aws_sfn_state_machine" "deploy_app_workflow" {
       CreateSubdomain = {
         Type     = "Task",
         Resource = aws_lambda_function.create_subdomain.arn,
-        Next     = "BuildDockerImage"
+        Parameters = {
+          "subdomain.$"           = "$.subdomain",
+          "repo_url.$"            = "$.repo_url",
+          "docker_image_repo.$"   = "$.docker_image_repo",
+          "docker_image_tag.$"    = "$.docker_image_tag",
+          "last_known_good_tag.$" = "$.last_known_good_tag"
+        },
+        ResultPath = "$.created_subdomain",
+        Next       = "BuildDockerImage"
       },
       BuildDockerImage = {
         Type     = "Task",
@@ -458,7 +466,7 @@ resource "aws_sfn_state_machine" "deploy_app_workflow" {
             "RepoUrl.$"          = "States.Array($.flat_vars.extracted.REPO_URL)",
             "DockerImageRepo.$"  = "States.Array($.docker_image_repo)",
             "DockerImageTag.$"   = "States.Array($.flat_vars.extracted.IMAGE_TAG)",
-            "Subdomain.$"        = "States.Array($.flat_vars.extracted.SUBDOMAIN)",
+            "Subdomain.$"        = "States.Array($.created_subdomain.subdomain)"
             "LastKnownGoodTag.$" = "States.Array($.last_known_good_tag)",
             "BucketName"         = ["${aws_s3_bucket.plugfolio_scripts.bucket}"]
           }
@@ -495,8 +503,9 @@ resource "aws_sfn_state_machine" "deploy_app_workflow" {
           InstanceIds  = [aws_instance.plugfolio_instance.id],
           Parameters = {
             "commands" = [
-              "/bin/bash /tmp/rollback-app.sh $.health_result.docker_image_repo $.health_result.last_known_good_tag $.health_result.subdomain"
+              "/bin/bash /tmp/rollback-app.sh $.health_result.docker_image_repo $.health_result.last_known_good_tag $.created_subdomain.subdomain"
             ]
+
 
           }
         },
