@@ -6,8 +6,8 @@ After=docker.service network-online.target
 [Service]
 Type=oneshot
 RemainAfterExit=yes
-ExecStart=/bin/bash -c "cd /home/ubuntu/plugfolio-app && /usr/local/bin/docker-compose -f docker-compose.yml up -d || docker run -d --name plugfolio-app-container -p 80:80 \$DOCKER_IMAGE"
-ExecStop=/bin/bash -c "cd /home/ubuntu/plugfolio-app && /usr/local/bin/docker-compose -f docker-compose.yml down || docker stop plugfolio-app-container && docker rm plugfolio-app-container"
+ExecStart=/bin/bash -c "echo 'Placeholder service - will be updated by deployment script'"
+ExecStop=/bin/bash -c "echo 'Placeholder stop command'"
 TimeoutStartSec=0
 
 [Install]

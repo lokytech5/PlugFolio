@@ -7,15 +7,17 @@ NEW_TAG="$3"
 SUBDOMAIN="$4"
 LAST_KNOWN_GOOD_TAG="$5"
 BUCKET_NAME="$6"
-INTERNAL_PORT="$7"  # New parameter
+INTERNAL_PORT="$7"  # Use the passed internal port
 
 # Application directory and container name
 APP_DIR="/home/ubuntu/plugfolio-app"
 CONTAINER_NAME="plugfolio-app-container"
+SERVICE_FILE="/etc/systemd/system/plugfolio-app.service"
+SERVICE_TEMPLATE="$APP_DIR/plugfolio-app.service.template"
 
 # Default ports
 EXTERNAL_PORT=80
-INTERNAL_PORT=${INTERNAL_PORT:-8000}  # Fallback to 8000 if not provided
+INTERNAL_PORT=${INTERNAL_PORT:-3000}  # Fallback to 3000 if not provided (safety net)
 
 # Validate input parameters
 if [ -z "$REPO_URL" ] || [ -z "$DOCKER_REGISTRY" ] || [ -z "$NEW_TAG" ] || [ -z "$SUBDOMAIN" ]; then
@@ -69,23 +71,37 @@ echo "Pulling new Docker image: $DOCKER_REGISTRY:$NEW_TAG"
 aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin $DOCKER_REGISTRY
 docker pull "$DOCKER_REGISTRY:$NEW_TAG"
 
-# Deploy the application (support both docker run and docker-compose)
-if [ -f "$APP_DIR/docker-compose.yml" ]; then
-  echo "Deploying with Docker Compose..."
-  sudo -u ubuntu docker-compose -f "$APP_DIR/docker-compose.yml" up -d
-else
-  if docker ps -q -f name="$CONTAINER_NAME"; then
-    echo "Stopping existing container..."
-    docker stop "$CONTAINER_NAME"
-    docker rm "$CONTAINER_NAME"
-  fi
-  echo "Starting new container..."
-  docker run -d --name "$CONTAINER_NAME" -p $EXTERNAL_PORT:$INTERNAL_PORT "$DOCKER_REGISTRY:$NEW_TAG"
+# Prepare the service file template if it doesn't exist
+if [ ! -f "$SERVICE_TEMPLATE" ]; then
+  cat << 'EOT' > "$SERVICE_TEMPLATE"
+[Unit]
+Description=Plugfolio App Docker Service
+Requires=docker.service
+After=docker.service network-online.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/bin/bash -c "cd /home/ubuntu/plugfolio-app && /usr/local/bin/docker-compose -f docker-compose.yml up -d || docker run -d --name plugfolio-app-container -p {{EXTERNAL_PORT}}:{{INTERNAL_PORT}} {{DOCKER_IMAGE}}"
+ExecStop=/bin/bash -c "cd /home/ubuntu/plugfolio-app && /usr/local/bin/docker-compose -f docker-compose.yml down || docker stop plugfolio-app-container && docker rm plugfolio-app-container"
+TimeoutStartSec=0
+
+[Install]
+WantedBy=multi-user.target
+EOT
+  sudo chown ubuntu:ubuntu "$SERVICE_TEMPLATE"
 fi
+
+# Update the service file with dynamic values
+sed "s/{{EXTERNAL_PORT}}/$EXTERNAL_PORT/g; s/{{INTERNAL_PORT}}/$INTERNAL_PORT/g; s|{{DOCKER_IMAGE}}|$DOCKER_REGISTRY:$NEW_TAG|g" "$SERVICE_TEMPLATE" | sudo tee "$SERVICE_FILE" > /dev/null
+
+# Reload systemd and restart the service
+sudo systemctl daemon-reload
+sudo systemctl restart plugfolio-app.service
 
 # Configure Nginx for the subdomain
 NGINX_CONF="/etc/nginx/sites-available/default"
-sudo tee $NGINX_CONF > /dev/null <<EOF
+sudo tee "$NGINX_CONF" > /dev/null <<EOF
 server {
     listen $EXTERNAL_PORT;
     server_name $SUBDOMAIN;

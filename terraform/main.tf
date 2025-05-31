@@ -527,9 +527,8 @@ resource "aws_sfn_state_machine" "deploy_app_workflow" {
             "LastKnownGoodTag.$" = "$.ssm_command.ssm_command.Command.Parameters.LastKnownGoodTag",
             "Subdomain.$"        = "States.Array($.created_subdomain.subdomain)",
             "BucketName"         = ["${aws_s3_bucket.plugfolio_scripts.bucket}"],
-            "RepoUrl"            = [""],
-            "DockerImageTag"     = [""],
-            "InternalPort.$"     = "States.Array($.fetched_params.internal_port)" # Use dynamic value
+            "InternalPort.$"     = "States.Array($.fetched_params.internal_port)"
+            # Removed "RepoUrl" and "DockerImageTag"
           }
         },
         Next = "NotifyFailure"
