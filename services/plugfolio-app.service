@@ -1,0 +1,14 @@
+[Unit]
+Description=Plugfolio App Docker Service
+Requires=docker.service
+After=docker.service network-online.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/bin/bash -c "echo 'Placeholder service - will be updated by deployment script'"
+ExecStop=/bin/bash -c "echo 'Placeholder stop command'"
+TimeoutStartSec=0
+
+[Install]
+WantedBy=multi-user.target

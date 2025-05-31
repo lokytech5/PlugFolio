@@ -1,0 +1,55 @@
+#!/bin/bash
+exec > /var/log/user-data.log 2>&1
+set -x
+
+# Update and upgrade packages
+sudo apt update -y && sudo apt upgrade -y
+
+# Install essentials
+sudo apt install -y python3-pip git unzip curl
+
+# Install AWS CLI v2 (official installer)
+curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+unzip awscliv2.zip
+sudo ./aws/install
+rm -rf awscliv2.zip aws/
+
+# Install Docker
+curl -fsSL https://get.docker.com -o get-docker.sh
+sh get-docker.sh
+sudo systemctl enable docker
+sudo systemctl start docker
+sudo usermod -aG docker ubuntu
+
+# Install Docker Compose
+sudo curl -L "https://github.com/docker/compose/releases/download/1.29.2/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+sudo chmod +x /usr/local/bin/docker-compose
+sudo ln -s /usr/local/bin/docker-compose /usr/bin/docker-compose
+
+# Ensure SSM Agent via snap is installed and enabled
+sudo snap install amazon-ssm-agent --classic
+sudo systemctl enable snap.amazon-ssm-agent.amazon-ssm-agent.service
+sudo systemctl start snap.amazon-ssm-agent.amazon-ssm-agent.service
+
+# Install Nginx
+sudo apt install -y nginx
+sudo systemctl enable nginx
+sudo systemctl start nginx
+
+# Add 2GB Swap
+sudo fallocate -l 2G /swapfile
+sudo chmod 600 /swapfile
+sudo mkswap /swapfile
+sudo swapon /swapfile
+echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab
+
+# Configure Nginx
+sudo systemctl enable nginx && sudo systemctl start nginx
+
+# Write out the systemd unit from a Terraform variable
+cat <<EOT | sudo tee /etc/systemd/system/plugfolio-app.service
+${my_app_service}
+EOT
+
+sudo systemctl daemon-reload
+sudo systemctl enable plugfolio-app.service

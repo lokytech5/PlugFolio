@@ -4,6 +4,8 @@ on:
   push:
     branches:
       - main
+      - dev
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -12,7 +14,6 @@ permissions:
 jobs:
   deploy:
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
@@ -35,12 +36,21 @@ jobs:
           aws s3api put-bucket-versioning --bucket plugfolio-terraform-state --versioning-configuration Status=Enabled --region us-east-1 || echo "Versioning already enabled"
           aws s3api put-bucket-encryption --bucket plugfolio-terraform-state --server-side-encryption-configuration '{"Rules":[{"ApplyServerSideEncryptionByDefault":{"SSEAlgorithm":"AES256"}}]}' --region us-east-1 || echo "Encryption already enabled"
 
+      - name: Determine Terraform State Key
+        id: set-state-key
+        run: |
+          if [ "${{ github.ref_name }}" == "main" ]; then
+            echo "state_key=main/terraform.tfstate" >> $GITHUB_OUTPUT
+          else
+            echo "state_key=dev/terraform.tfstate" >> $GITHUB_OUTPUT
+          fi
+
       - name: Terraform Init with S3 Backend
         working-directory: ./terraform
         run: |
           terraform init \
             -backend-config="bucket=plugfolio-terraform-state" \
-            -backend-config="key=terraform.tfstate" \
+            -backend-config="key=${{ steps.set-state-key.outputs.state_key }}" \
             -backend-config="region=us-east-1" \
             -backend-config="encrypt=true" \
             -backend-config="dynamodb_table=plugfolio-terraform-locks"
