@@ -1,28 +1,26 @@
-[
-  {
-    "schemaVersion": "2.2",
-    "description": "Deploy Plugfolio App",
-    "parameters": {
-      "RepoUrl": { "type": "String" },
-      "DockerImageRepo": { "type": "String" },
-      "DockerImageTag": { "type": "String" },
-      "Subdomain": { "type": "String" },
-      "LastKnownGoodTag": { "type": "String" },
-      "BucketName": { "type": "String" },
-      "InternalPort": { "type": "String" }
-    },
-    "mainSteps": [
-      {
-        "action": "aws:runShellScript",
-        "name": "runShellScript",
-        "inputs": {
-          "runCommand": [
-            "aws s3 cp s3://{{ BucketName }}/deploy-app.sh /tmp/deploy-app.sh",
-            "chmod +x /tmp/deploy-app.sh",
-            "/bin/bash /tmp/deploy-app.sh {{ RepoUrl }} {{ DockerImageRepo }} {{ DockerImageTag }} {{ Subdomain }} {{ LastKnownGoodTag }} {{ BucketName }} {{ InternalPort }}"
-          ]
-        }
+{
+  "schemaVersion": "2.2",
+  "description": "Deploy Plugfolio App",
+  "parameters": {
+    "RepoUrl": { "type": "String" },
+    "DockerImageRepo": { "type": "String" },
+    "DockerImageTag": { "type": "String" },
+    "Subdomain": { "type": "String" },
+    "LastKnownGoodTag": { "type": "String" },
+    "BucketName": { "type": "String" },
+    "InternalPort": { "type": "String" }
+  },
+  "mainSteps": [
+    {
+      "action": "aws:runShellScript",
+      "name": "runShellScript",
+      "inputs": {
+        "runCommand": [
+          "aws s3 cp s3://{{ BucketName }}/deploy-app.sh /tmp/deploy-app.sh",
+          "chmod +x /tmp/deploy-app.sh",
+          "/bin/bash /tmp/deploy-app.sh {{ RepoUrl }} {{ DockerImageRepo }} {{ DockerImageTag }} {{ Subdomain }} {{ LastKnownGoodTag }} {{ BucketName }} {{ InternalPort }}"
+        ]
       }
-    ]
-  }
-]
+    }
+  ]
+}
