@@ -14,23 +14,9 @@ def lambda_handler(event, context):
     document_name = event.get('DocumentName')
     parameters_input = event.get("Parameters", {})
 
-    # Read values from the Parameters object passed in
-    repo_url = parameters_input.get("RepoUrl", [""])[0]
-    docker_image_repo = parameters_input.get("DockerImageRepo", [""])[0]
-    docker_image_tag = parameters_input.get("DockerImageTag", [""])[0]
-    subdomain = parameters_input.get("Subdomain", [""])[0]
-    last_known_good_tag = parameters_input.get("LastKnownGoodTag", [""])[0]
-    bucket_name = parameters_input.get("BucketName", [""])[0]
-    internal_port = parameters_input.get("InternalPort", [""])[0]  # Add InternalPort
-
+    # Only include parameters explicitly provided in the event
     parameters = {
-        "RepoUrl": [repo_url],
-        "DockerImageRepo": [docker_image_repo],
-        "DockerImageTag": [docker_image_tag],
-        "Subdomain": [subdomain],
-        "LastKnownGoodTag": [last_known_good_tag],
-        "BucketName": [bucket_name],
-        "InternalPort": [internal_port]  # Include InternalPort
+        key: [value[0]] for key, value in parameters_input.items() if value and value[0]
     }
 
     if not instance_ids or not document_name:

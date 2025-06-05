@@ -528,7 +528,7 @@ resource "aws_sfn_state_machine" "deploy_app_workflow" {
             "Subdomain.$"        = "States.Array($.created_subdomain.subdomain)",
             "BucketName"         = ["${aws_s3_bucket.plugfolio_scripts.bucket}"],
             "InternalPort.$"     = "States.Array($.fetched_params.internal_port)"
-            # Removed "RepoUrl" and "DockerImageTag"
+
           }
         },
         Next = "NotifyFailure"

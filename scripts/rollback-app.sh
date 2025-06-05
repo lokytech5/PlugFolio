@@ -13,7 +13,7 @@ CONTAINER_NAME="plugfolio-app-container"
 
 # Default ports
 EXTERNAL_PORT=80
-INTERNAL_PORT=${INTERNAL_PORT:-8000}  # Fallback to 8000 if not provided
+INTERNAL_PORT=${INTERNAL_PORT:-3000}  # Fallback to 3000 if not provided
 
 # Validate input parameters
 if [ -z "$DOCKER_REGISTRY" ] || [ -z "$LAST_KNOWN_GOOD_TAG" ] || [ -z "$SUBDOMAIN" ]; then
@@ -32,16 +32,6 @@ else
     docker stop "$CONTAINER_NAME"
     docker rm "$CONTAINER_NAME"
   fi
-fi
-
-# Download docker-compose.yml from S3 if it exists
-if [ -n "$BUCKET_NAME" ]; then
-  aws s3 cp "s3://$BUCKET_NAME/docker-compose.yml" "$APP_DIR/docker-compose.yml" || true
-fi
-
-# Update docker-compose.yml port mapping if it exists
-if [ -f "$APP_DIR/docker-compose.yml" ]; then
-  sed -i "s/ports:.*$/ports:\n      - \"$EXTERNAL_PORT:$INTERNAL_PORT\"/" "$APP_DIR/docker-compose.yml"
 fi
 
 # Pull the last known good Docker image

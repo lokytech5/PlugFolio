@@ -17,7 +17,7 @@ SERVICE_TEMPLATE="$APP_DIR/plugfolio-app.service.template"
 
 # Default ports
 EXTERNAL_PORT=80
-INTERNAL_PORT=${INTERNAL_PORT:-3000}  # Fallback to 3000 if not provided (safety net)
+INTERNAL_PORT=${INTERNAL_PORT:-3000}  # Fallback to 3000 if not provided
 
 # Validate input parameters
 if [ -z "$REPO_URL" ] || [ -z "$DOCKER_REGISTRY" ] || [ -z "$NEW_TAG" ] || [ -z "$SUBDOMAIN" ]; then
@@ -35,13 +35,6 @@ if ! command -v docker &> /dev/null; then
   sudo usermod -aG docker ubuntu
 fi
 
-# Install Docker Compose if needed
-if ! command -v docker-compose &> /dev/null; then
-  sudo curl -L "https://github.com/docker/compose/releases/download/1.29.2/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
-  sudo chmod +x /usr/local/bin/docker-compose
-  sudo ln -s /usr/local/bin/docker-compose /usr/bin/docker-compose
-fi
-
 # Clone or pull the repository
 if [ ! -d "$APP_DIR" ]; then
   mkdir -p "$APP_DIR"
@@ -56,24 +49,19 @@ fi
 # Set ownership
 sudo chown -R ubuntu:ubuntu "$APP_DIR"
 
-# Download docker-compose.yml from S3 if it exists
-if [ -n "$BUCKET_NAME" ]; then
-  aws s3 cp "s3://$BUCKET_NAME/docker-compose.yml" "$APP_DIR/docker-compose.yml" || true
-fi
+# Authenticate with ECR
+aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin "$DOCKER_REGISTRY"
 
-# Update docker-compose.yml port mapping if it exists
+# Update docker-compose.yml with the correct image tag if it exists
 if [ -f "$APP_DIR/docker-compose.yml" ]; then
-  sed -i "s/ports:.*$/ports:\n      - \"$EXTERNAL_PORT:$INTERNAL_PORT\"/" "$APP_DIR/docker-compose.yml"
+  sed -i "s|image:.*|image: $DOCKER_REGISTRY:$NEW_TAG|" "$APP_DIR/docker-compose.yml" || true
 fi
 
-# Pull the new Docker image
-echo "Pulling new Docker image: $DOCKER_REGISTRY:$NEW_TAG"
-aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin $DOCKER_REGISTRY
-docker pull "$DOCKER_REGISTRY:$NEW_TAG"
-
-# Prepare the service file template if it doesn't exist
+# Prepare the service file template based on deployment method
 if [ ! -f "$SERVICE_TEMPLATE" ]; then
-  cat << 'EOT' > "$SERVICE_TEMPLATE"
+  if [ -f "$APP_DIR/docker-compose.yml" ]; then
+    # Use docker-compose if docker-compose.yml exists
+    cat << 'EOT' > "$SERVICE_TEMPLATE"
 [Unit]
 Description=Plugfolio App Docker Service
 Requires=docker.service
@@ -82,18 +70,43 @@ After=docker.service network-online.target
 [Service]
 Type=oneshot
 RemainAfterExit=yes
-ExecStart=/bin/bash -c "cd /home/ubuntu/plugfolio-app && /usr/local/bin/docker-compose -f docker-compose.yml up -d || docker run -d --name plugfolio-app-container -p {{EXTERNAL_PORT}}:{{INTERNAL_PORT}} {{DOCKER_IMAGE}}"
-ExecStop=/bin/bash -c "cd /home/ubuntu/plugfolio-app && /usr/local/bin/docker-compose -f docker-compose.yml down || docker stop plugfolio-app-container && docker rm plugfolio-app-container"
+ExecStart=/bin/bash -c "cd /home/ubuntu/plugfolio-app && docker-compose -f docker-compose.yml up -d"
+ExecStop=/bin/bash -c "cd /home/ubuntu/plugfolio-app && docker-compose -f docker-compose.yml down"
 TimeoutStartSec=0
 
 [Install]
 WantedBy=multi-user.target
-EOT
+    EOT
+  else
+    # Use docker run if no docker-compose.yml
+    cat << 'EOT' > "$SERVICE_TEMPLATE"
+[Unit]
+Description=Plugfolio App Docker Service
+Requires=docker.service
+After=docker.service network-online.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/bin/bash -c "docker run -d --name plugfolio-app-container -p {{EXTERNAL_PORT}}:{{INTERNAL_PORT}} {{DOCKER_IMAGE}}"
+ExecStop=/bin/bash -c "docker stop plugfolio-app-container && docker rm plugfolio-app-container"
+TimeoutStartSec=0
+
+[Install]
+WantedBy=multi-user.target
+    EOT
+  fi
   sudo chown ubuntu:ubuntu "$SERVICE_TEMPLATE"
 fi
 
 # Update the service file with dynamic values
-sed "s/{{EXTERNAL_PORT}}/$EXTERNAL_PORT/g; s/{{INTERNAL_PORT}}/$INTERNAL_PORT/g; s|{{DOCKER_IMAGE}}|$DOCKER_REGISTRY:$NEW_TAG|g" "$SERVICE_TEMPLATE" | sudo tee "$SERVICE_FILE" > /dev/null
+if [ -f "$APP_DIR/docker-compose.yml" ]; then
+  # For docker-compose, just copy the template (image is updated in docker-compose.yml)
+  cp "$SERVICE_TEMPLATE" "$SERVICE_FILE"
+else
+  # For docker run, replace placeholders
+  sed "s/{{EXTERNAL_PORT}}/$EXTERNAL_PORT/g; s/{{INTERNAL_PORT}}/$INTERNAL_PORT/g; s|{{DOCKER_IMAGE}}|$DOCKER_REGISTRY:$NEW_TAG|g" "$SERVICE_TEMPLATE" | sudo tee "$SERVICE_FILE" > /dev/null
+fi
 
 # Reload systemd and restart the service
 sudo systemctl daemon-reload
